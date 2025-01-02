@@ -96,6 +96,13 @@ services:
 - Create a new account and get an API key: <https://www.themoviedb.org/settings/api>
 - Note down the `apiKey`
 
+## Jackett and flaresolverr
+
+- Configured Jackett as needed
+  - Add flaresolverr
+  - Add as many good quality indexers as possible
+- Make sure the Jackett search returns some results
+
 ## Prepare the server
 
 - Log in as admin
