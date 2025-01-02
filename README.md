@@ -43,6 +43,7 @@
 services:
   odin:
     image: ghcr.io/ad-on-is/odin:latest
+    # image: ghcr.io/ad-on-is/odin:latest-arm64
     container_name: odin
     restart: always
     ports:
