@@ -23,6 +23,10 @@ export default defineNuxtRouteMiddleware(async (to, _) => {
 			if (u === null) {
 				usePb().authStore.clear()
 				return navigateTo('/login')
+			} else {
+				if (to.path === '/admin') {
+					return navigateTo('/settings')
+				}
 			}
 		}
 	}
