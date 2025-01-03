@@ -191,7 +191,7 @@ bun --bun run dev
 
 ## License
 
-MIT
+GPLv3
 
 ---
 
