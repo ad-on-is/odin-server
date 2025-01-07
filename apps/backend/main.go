@@ -199,15 +199,15 @@ func main() {
 			id := info.AuthRecord.Id
 			url := strings.ReplaceAll(c.Request().URL.String(), "/-/trakt", "")
 
-			rheaders := map[string]string{}
+			// rheaders := map[string]string{}
 
-			for k, v := range apis.RequestInfo(c).Headers {
-				if k == "Host" || k == "Connection" || k == "authorization" {
-					continue
-				}
-				rheaders[k] = v.(string)
-			}
-			trakt.Headers = rheaders
+			// for k, v := range apis.RequestInfo(c).Headers {
+			// 	if k == "Host" || k == "Connection" || k == "authorization" {
+			// 		continue
+			// 	}
+			// 	rheaders[k] = v.(string)
+			// }
+			// trakt.Headers = rheaders
 			// delete passed header of pocketbase
 
 			t := make(map[string]any)
@@ -222,7 +222,6 @@ func main() {
 				delete(trakt.Headers, "authorization")
 			}
 
-			trakt.FetchSeasons = true
 			trakt.FetchTMDB = true
 
 			jsonData := apis.RequestInfo(c).Data

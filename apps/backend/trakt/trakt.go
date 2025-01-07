@@ -31,24 +31,22 @@ const (
 )
 
 type Trakt struct {
-	app          *pocketbase.PocketBase
-	tmdb         *tmdb.Tmdb
-	settings     *settings.Settings
-	helpers      *helpers.Helpers
-	Headers      map[string]string
-	FetchTMDB    bool
-	FetchSeasons bool
+	app       *pocketbase.PocketBase
+	tmdb      *tmdb.Tmdb
+	settings  *settings.Settings
+	helpers   *helpers.Helpers
+	Headers   map[string]string
+	FetchTMDB bool
 }
 
 func New(app *pocketbase.PocketBase, tmdb *tmdb.Tmdb, settings *settings.Settings, helpers *helpers.Helpers) *Trakt {
 	return &Trakt{
-		app:          app,
-		tmdb:         tmdb,
-		settings:     settings,
-		helpers:      helpers,
-		Headers:      map[string]string{},
-		FetchTMDB:    true,
-		FetchSeasons: true,
+		app:       app,
+		tmdb:      tmdb,
+		settings:  settings,
+		helpers:   helpers,
+		Headers:   map[string]string{},
+		FetchTMDB: true,
 	}
 }
 
@@ -103,7 +101,6 @@ func (t *Trakt) SyncHistory() {
 	users := []*models.Record{}
 	t.app.Dao().RecordQuery("users").All(&users)
 	t.FetchTMDB = false
-	t.FetchSeasons = false
 	var wg sync.WaitGroup
 	for _, u := range users {
 		records, _ := t.app.Dao().FindRecordsByFilter("history", "user = {:user}", "-watched_at", 1, 0, dbx.Params{"user": u.Get("id")})
@@ -371,8 +368,14 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any
 
 		case []any:
 			items := t.objToItems(objmap, strings.Contains(endpoint, "/shows"))
+			var wg sync.WaitGroup
+			var mux sync.Mutex
 
 			if len(items) == 0 || strings.Contains(endpoint, "sync/history") {
+				if t.FetchTMDB {
+					t.getTMDB(&wg, &mux, items)
+				}
+				wg.Wait()
 				return items, respHeaders, status
 			}
 
@@ -384,8 +387,6 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any
 				items = t.removeDuplicates(items)
 			}
 
-			var wg sync.WaitGroup
-			var mux sync.Mutex
 			if t.FetchTMDB {
 				t.getTMDB(&wg, &mux, items)
 			}
