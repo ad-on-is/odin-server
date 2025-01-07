@@ -119,7 +119,7 @@ func ParseDates(str string) string {
 		str = strings.ReplaceAll(str, match[0], fmt.Sprintf("%d", dinm))
 	}
 
-	log.Warn(orig, "new", str, "year", now.Year(), "month", now.Month(), "day", now.Day())
+	log.Debug(orig, "new", str, "year", now.Year(), "month", now.Month(), "day", now.Day())
 
 	return str
 }
