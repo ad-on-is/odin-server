@@ -181,7 +181,7 @@ func getTorrents(indexer Indexer, payload common.Payload) []common.Torrent {
 	if indexer.SearchAvailable() {
 		q = payload.Title + "+" + payload.Year
 		if payload.Type == "episode" {
-			q = payload.ShowTitle + "+S" + payload.SeasonNumber
+			q = payload.ShowTitle
 		}
 	}
 
