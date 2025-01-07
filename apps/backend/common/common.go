@@ -77,6 +77,8 @@ func ParseDates(str string) string {
 
 	matches := re.FindAllStringSubmatch(str, -1)
 	now := time.Now()
+	// current := time.Now()
+	orig := str
 	for _, match := range matches {
 
 		yearVal := 0
@@ -103,11 +105,11 @@ func ParseDates(str string) string {
 			}
 		}
 		now = now.AddDate(yearVal, monthVal, dayVal)
-		str = strings.ReplaceAll(str, "#year#", fmt.Sprintf("%d", now.Year()))
-		str = strings.ReplaceAll(str, "#month#", fmt.Sprintf("%d", now.Month()))
-		str = strings.ReplaceAll(str, "#day#", fmt.Sprintf("%d", now.Day()))
 
 	}
+	str = strings.ReplaceAll(str, "#day#", fmt.Sprintf("%d", now.Day()))
+	str = strings.ReplaceAll(str, "#month#", fmt.Sprintf("%d", now.Month()))
+	str = strings.ReplaceAll(str, "#year#", fmt.Sprintf("%d", now.Year()))
 
 	re2 := regexp.MustCompile("::monthdays::")
 
@@ -116,6 +118,8 @@ func ParseDates(str string) string {
 	for _, match := range matches2 {
 		str = strings.ReplaceAll(str, match[0], fmt.Sprintf("%d", dinm))
 	}
+
+	log.Warn(orig, "new", str, "year", now.Year(), "month", now.Month(), "day", now.Day())
 
 	return str
 }
