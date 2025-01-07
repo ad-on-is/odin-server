@@ -71,7 +71,7 @@ func getVersion() string {
 	b, err := os.ReadFile("./version.txt")
 	if err == nil {
 		v := string(b)
-		v = strings.ReplaceAll(v, "\r\n", "")
+		v = strings.ReplaceAll(v, "\n", "")
 		return v
 	}
 	return "Missing file: version.txt"
