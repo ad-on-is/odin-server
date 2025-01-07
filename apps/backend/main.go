@@ -67,6 +67,16 @@ func RequireDeviceOrRecordAuth(app *pocketbase.PocketBase) echo.MiddlewareFunc {
 	}
 }
 
+func getVersion() string {
+	b, err := os.ReadFile("./version.txt")
+	if err == nil {
+		v := string(b)
+		v = strings.ReplaceAll(v, "\r\n", "")
+		return v
+	}
+	return "Missing file: version.txt"
+}
+
 func main() {
 	godotenv.Load()
 
@@ -85,7 +95,6 @@ func main() {
 		Automigrate: true,
 	})
 
-	// serves static files from the provided public dir (if exists)
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		settings := settings.New(app)
 		helpers := helpers.New(app)
@@ -130,7 +139,6 @@ func main() {
 			// trakt.SyncHistory()
 		}()
 
-		e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./pb_public"), false))
 		e.Router.POST("/-/scrape", func(c echo.Context) error {
 			mq := common.MqttClient()
 			var pl common.Payload
@@ -327,13 +335,26 @@ func main() {
 			if ping != "" {
 				return c.String(http.StatusOK, "pong")
 			}
+
+			info := apis.RequestInfo(c)
+
+			id := info.AuthRecord.Id
+
+			t := make(map[string]any)
+			u, _ := app.Dao().FindRecordById("users", id)
+			u.UnmarshalJSONField("trakt_token", &t)
+			// delete(trakt.Headers, "authorization")
+
+			if t != nil && t["access_token"] != nil {
+				trakt.Headers["authorization"] = "Bearer " + t["access_token"].(string)
+			}
+
 			var rd any
 			realdebrid.CallEndpoint("/user", "GET", nil, &rd, false)
 			var ad any
 			alldebrid.CallEndpoint("/user", "GET", nil, &ad)
 			tr, _, _ := trakt.CallEndpoint("/users/settings", "GET", nil, false)
-
-			return c.JSON(http.StatusOK, map[string]any{"realdebrid": rd, "alldebrid": ad, "trakt": tr})
+			return c.JSON(http.StatusOK, map[string]any{"realdebrid": rd, "alldebrid": ad, "trakt": tr, "version": getVersion()})
 		}, RequireDeviceOrRecordAuth(app))
 
 		e.Router.GET("/-/tmdbseasons/:id", func(c echo.Context) error {

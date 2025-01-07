@@ -26,6 +26,7 @@ COPY ./apps/services/mosquitto.conf /etc/mosquitto/mosquitto.conf
 COPY ./apps/backend/migrations/1735493885_collections_snapshot.go /migrations/1735493885_collections_snapshot.go
 
 COPY ./entrypoint.sh /entrypoint.sh
+COPY ./version.txt /version.txt
 
 CMD ["/entrypoint.sh"]
 

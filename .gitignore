@@ -39,3 +39,4 @@ yarn-error.log*
 
 
 apps/backend/pb_data
+apps/backend/version.txt
