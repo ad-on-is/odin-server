@@ -76,19 +76,21 @@ func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
 		for k := range torrentQueue {
 			i++
 			// Filter quality from settings
-			if !funk.Contains(done, k.Magnet) && k.Quality != "720p" && k.Quality != "SD" &&
-				k.Quality != "CAM" {
+			if !funk.Contains(done, k.Magnet) {
+				if len(done) == 0 || k.Quality != "720p" && k.Quality != "SD" &&
+					k.Quality != "CAM" {
 
-				isUnrestricted := funk.Find(allTorrentsUnrestricted, func(s types.Torrent) bool {
-					return s.Magnet == k.Magnet
-				}) != nil
+					isUnrestricted := funk.Find(allTorrentsUnrestricted, func(s types.Torrent) bool {
+						return s.Magnet == k.Magnet
+					}) != nil
 
-				if !isUnrestricted {
-					if s.unrestrict(k, mqt, topic) {
-						d++
+					if !isUnrestricted {
+						if s.unrestrict(k, mqt, topic) {
+							d++
+						}
 					}
+					done = append(done, k.Magnet)
 				}
-				done = append(done, k.Magnet)
 			}
 		}
 	}()

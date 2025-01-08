@@ -301,6 +301,7 @@ func getTorrents(indexer Indexer, payload common.Payload) []common.Torrent {
 			}
 		}
 		if t.Magnet != "" {
+			log.Debug("Torrent", "hash", t.Hash, "name", t.Name)
 			torrents = append(torrents, t)
 		}
 	}
