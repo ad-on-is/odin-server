@@ -311,7 +311,7 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktP
 		hs = params.Headers
 	}
 
-	request := resty.New().SetRetryCount(3).SetRetryWaitTime(time.Second * 3).R()
+	request := resty.New().SetRetryCount(10).SetRetryWaitTime(time.Second * 3).R()
 	request.SetHeader("trakt-api-version", "2").SetHeader("content-type", "application/json").SetHeader("trakt-api-key", os.Getenv("TRAKT_CLIENTID")).AddRetryCondition(func(r *resty.Response, err error) bool {
 		return r.StatusCode() == 401
 	}).SetHeaders(hs)
