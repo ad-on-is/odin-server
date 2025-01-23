@@ -264,7 +264,7 @@ func main() {
 					Body:      jsonData,
 					Donorm:    true,
 					Headers:   theaders,
-					FetchTMDB: false,
+					FetchTMDB: true,
 				},
 			)
 
