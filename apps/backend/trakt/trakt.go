@@ -125,7 +125,7 @@ func (t *Trakt) SyncHistory(id string) {
 
 func (t *Trakt) syncByType(wg *sync.WaitGroup, typ string, last_history ptypes.DateTime, user string, accesToken string) {
 	defer wg.Done()
-	limit := 500
+	limit := 200
 	url := "/sync/history/" + typ + "?limit=" + fmt.Sprint(limit)
 	collection, _ := t.app.Dao().FindCollectionByNameOrId("history")
 	if !last_history.IsZero() {
@@ -141,7 +141,9 @@ func (t *Trakt) syncByType(wg *sync.WaitGroup, typ string, last_history ptypes.D
 			pageurl := url + "&page=" + fmt.Sprint(i)
 
 			data, _, _ := t.CallEndpoint(pageurl, "GET", types.TraktParams{Headers: map[string]string{"authorization": accesToken}})
-
+			if data == nil {
+				return
+			}
 			for _, o := range data.([]types.TraktItem) {
 				o.Original = nil
 				o.Watched = true
