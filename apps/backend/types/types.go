@@ -59,3 +59,10 @@ type Unrestricted struct {
 	Streams  []string `json:"stream"`
 	Filesize int      `json:"filesize"`
 }
+
+type TraktParams struct {
+	Body      map[string]any
+	Headers   map[string]string
+	Donorm    bool
+	FetchTMDB bool
+}

@@ -31,22 +31,18 @@ const (
 )
 
 type Trakt struct {
-	app       *pocketbase.PocketBase
-	tmdb      *tmdb.Tmdb
-	settings  *settings.Settings
-	helpers   *helpers.Helpers
-	Headers   map[string]string
-	FetchTMDB bool
+	app      *pocketbase.PocketBase
+	tmdb     *tmdb.Tmdb
+	settings *settings.Settings
+	helpers  *helpers.Helpers
 }
 
 func New(app *pocketbase.PocketBase, tmdb *tmdb.Tmdb, settings *settings.Settings, helpers *helpers.Helpers) *Trakt {
 	return &Trakt{
-		app:       app,
-		tmdb:      tmdb,
-		settings:  settings,
-		helpers:   helpers,
-		Headers:   map[string]string{},
-		FetchTMDB: true,
+		app:      app,
+		tmdb:     tmdb,
+		settings: settings,
+		helpers:  helpers,
 	}
 }
 
@@ -97,12 +93,14 @@ func (t *Trakt) removeSeason0(objmap []types.TraktItem) []types.TraktItem {
 	return toKeep
 }
 
-func (t *Trakt) SyncHistory() {
+func (t *Trakt) SyncHistory(id string) {
 	users := []*models.Record{}
 	t.app.Dao().RecordQuery("users").All(&users)
-	t.FetchTMDB = false
 	var wg sync.WaitGroup
 	for _, u := range users {
+		if id != "" && u.Id != id {
+			continue
+		}
 		records, _ := t.app.Dao().FindRecordsByFilter("history", "user = {:user}", "-watched_at", 1, 0, dbx.Params{"user": u.Get("id")})
 		last_watched := ptypes.DateTime{}
 		if len(records) > 0 {
@@ -114,12 +112,10 @@ func (t *Trakt) SyncHistory() {
 			continue
 		}
 
-		t.Headers["authorization"] = "Bearer " + token["access_token"].(string)
-
 		wg.Add(1)
-		go t.syncByType(&wg, "movies", last_watched, u.Get("id").(string))
+		go t.syncByType(&wg, "movies", last_watched, u.Get("id").(string), "Bearer "+token["access_token"].(string))
 		wg.Add(1)
-		go t.syncByType(&wg, "episodes", last_watched, u.Get("id").(string))
+		go t.syncByType(&wg, "episodes", last_watched, u.Get("id").(string), "Bearer "+token["access_token"].(string))
 
 		wg.Wait()
 		log.Info("Done synching trakt history", "user", u.Get("id"))
@@ -127,25 +123,24 @@ func (t *Trakt) SyncHistory() {
 	}
 }
 
-func (t *Trakt) syncByType(wg *sync.WaitGroup, typ string, last_history ptypes.DateTime, user string) {
+func (t *Trakt) syncByType(wg *sync.WaitGroup, typ string, last_history ptypes.DateTime, user string, accesToken string) {
 	defer wg.Done()
-	limit := 100
+	limit := 500
 	url := "/sync/history/" + typ + "?limit=" + fmt.Sprint(limit)
-	log.Debug(url)
 	collection, _ := t.app.Dao().FindCollectionByNameOrId("history")
 	if !last_history.IsZero() {
 		url += "&start_at=" + last_history.Time().Add(time.Second*1).Format(time.RFC3339)
 	}
-	_, headers, _ := t.CallEndpoint(url, "GET", nil, false)
+	_, headers, _ := t.CallEndpoint(url, "GET", types.TraktParams{Headers: map[string]string{"authorization": accesToken}})
 	pages, _ := strconv.Atoi(headers.Get("X-Pagination-Page-Count"))
 
 	for i := 1; i <= pages; i++ {
 		wg.Add(1)
 		go func(i int, wg *sync.WaitGroup) {
 			defer wg.Done()
-			url += "&page=" + fmt.Sprint(i)
+			pageurl := url + "&page=" + fmt.Sprint(i)
 
-			data, _, _ := t.CallEndpoint(url, "GET", nil, false)
+			data, _, _ := t.CallEndpoint(pageurl, "GET", types.TraktParams{Headers: map[string]string{"authorization": accesToken}})
 
 			for _, o := range data.([]types.TraktItem) {
 				o.Original = nil
@@ -177,7 +172,7 @@ func (t *Trakt) RefreshTokens() {
 	for _, r := range records {
 		token := make(map[string]any)
 		if err := r.UnmarshalJSONField("trakt_token", &t); err == nil {
-			data, _, status := t.CallEndpoint("/oauth/token", "POST", map[string]any{"grant_type": "refresh_token", "client_id": os.Getenv("TRAKT_CLIENTID"), "client_secret": os.Getenv("TRAKT_SECRET"), "code": token["device_code"], "refresh_token": token["refresh_token"]}, false)
+			data, _, status := t.CallEndpoint("/oauth/token", "POST", types.TraktParams{Body: map[string]any{"grant_type": "refresh_token", "client_id": os.Getenv("TRAKT_CLIENTID"), "client_secret": os.Getenv("TRAKT_SECRET"), "code": token["device_code"], "refresh_token": token["refresh_token"]}})
 			if status < 300 && data != nil {
 				data.(map[string]any)["device_code"] = token["device_code"]
 				r.Set("trakt_token", data)
@@ -306,10 +301,13 @@ func (t *Trakt) itemsToObj(items []types.TraktItem) []map[string]any {
 	return o
 }
 
-func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any, donorm bool) (any, http.Header, int) {
+func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktParams) (any, http.Header, int) {
 	var objmap any
 
-	hs := t.Headers
+	hs := map[string]string{}
+	if params.Headers != nil {
+		hs = params.Headers
+	}
 
 	request := resty.New().SetRetryCount(3).SetRetryWaitTime(time.Second * 3).R()
 	request.SetHeader("trakt-api-version", "2").SetHeader("content-type", "application/json").SetHeader("trakt-api-key", os.Getenv("TRAKT_CLIENTID")).AddRetryCondition(func(r *resty.Response, err error) bool {
@@ -318,8 +316,8 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any
 
 	var respHeaders http.Header
 	status := 200
-	if body != nil {
-		request.SetBody(body)
+	if params.Body != nil {
+		request.SetBody(params.Body)
 	}
 	request.Attempt = 3
 	var r func(url string) (*resty.Response, error)
@@ -354,10 +352,11 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any
 	if resp, err := r(fmt.Sprintf("%s%s", TRAKT_URL, endpoint)); err == nil {
 		respHeaders = resp.Header()
 		status = resp.StatusCode()
-		log.Info("trakt fetch", "url", endpoint, "method", method, "status", status)
 		if status > 299 {
-			log.Error("trakt", "fetch", endpoint, "status", status)
-			// log.Debug("trakt", "fetch", endpoint, "status", status, "res", string(resp.Body()), "body", body, "headers", respHeaders)
+			log.Error("trakt error", "fetch", endpoint, "status", status)
+			log.Debug("trakt error", "res", string(resp.Body()), "body", params.Body, "headers", respHeaders)
+		} else {
+			log.Debug("trakt fetch", "url", endpoint, "method", method, "status", status)
 		}
 		err := json.Unmarshal(resp.Body(), &objmap)
 		if err != nil {
@@ -372,7 +371,7 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any
 			var mux sync.Mutex
 
 			if len(items) == 0 || strings.Contains(endpoint, "sync/history") {
-				if t.FetchTMDB {
+				if params.FetchTMDB {
 					t.getTMDB(&wg, &mux, items)
 				}
 				wg.Wait()
@@ -387,7 +386,7 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any
 				items = t.removeDuplicates(items)
 			}
 
-			if t.FetchTMDB {
+			if params.FetchTMDB {
 				t.getTMDB(&wg, &mux, items)
 			}
 
@@ -400,7 +399,7 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, body map[string]any
 		}
 
 	} else {
-		log.Error("trakt", "endpoint", endpoint, "body", body, "err", err)
+		log.Error("trakt", "endpoint", endpoint, "body", params.Body, "err", err)
 	}
 
 	return objmap, respHeaders, status
@@ -499,7 +498,7 @@ func (t *Trakt) GetSeasons(id int) any {
 	// 	return cache
 	// }
 	endpoint := fmt.Sprintf("/shows/%d/seasons?extended=full,episodes", id)
-	result, _, _ := t.CallEndpoint(endpoint, "GET", nil, false)
+	result, _, _ := t.CallEndpoint(endpoint, "GET", types.TraktParams{})
 	t.helpers.WriteTraktSeasonCache(uint(id), &result)
 	return result
 }

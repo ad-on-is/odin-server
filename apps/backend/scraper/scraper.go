@@ -46,6 +46,8 @@ func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
 		indexertopic += "/" + data.Trakt
 	}
 
+	log.Debug("test")
+
 	log.Debug("MQTT", "indexer topic", indexertopic)
 	log.Debug("MQTT", "result topic", topic)
 	torrentQueue := make(chan types.Torrent)
