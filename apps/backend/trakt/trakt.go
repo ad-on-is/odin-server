@@ -142,7 +142,7 @@ func (t *Trakt) syncByType(wg *sync.WaitGroup, typ string, last_history ptypes.D
 
 		data, _, _ := t.CallEndpoint(pageurl, "GET", types.TraktParams{Headers: map[string]string{"authorization": accesToken}})
 		if data == nil {
-			return
+			continue
 		}
 		for _, o := range data.([]types.TraktItem) {
 			o.Original = nil
