@@ -135,35 +135,35 @@ func (t *Trakt) syncByType(wg *sync.WaitGroup, typ string, last_history ptypes.D
 	pages, _ := strconv.Atoi(headers.Get("X-Pagination-Page-Count"))
 
 	for i := 1; i <= pages; i++ {
-		wg.Add(1)
-		go func(i int, wg *sync.WaitGroup) {
-			defer wg.Done()
-			pageurl := url + "&page=" + fmt.Sprint(i)
+		// wg.Add(1)
+		// go func(i int, wg *sync.WaitGroup) {
+		// defer wg.Done()
+		pageurl := url + "&page=" + fmt.Sprint(i)
 
-			data, _, _ := t.CallEndpoint(pageurl, "GET", types.TraktParams{Headers: map[string]string{"authorization": accesToken}})
-			if data == nil {
-				return
+		data, _, _ := t.CallEndpoint(pageurl, "GET", types.TraktParams{Headers: map[string]string{"authorization": accesToken}})
+		if data == nil {
+			return
+		}
+		for _, o := range data.([]types.TraktItem) {
+			o.Original = nil
+			o.Watched = true
+			record := models.NewRecord(collection)
+			record.Set("watched_at", o.WatchedAt)
+			record.Set("user", user)
+			record.Set("type", o.Type)
+			record.Set("trakt_id", o.IDs.Trakt)
+			record.Set("runtime", o.Runtime)
+			switch typ {
+			case "movies":
+				record.Set("data", o)
+			case "episodes":
+				record.Set("show_id", o.Show.IDs.Trakt)
+				record.Set("data", o.Show)
 			}
-			for _, o := range data.([]types.TraktItem) {
-				o.Original = nil
-				o.Watched = true
-				record := models.NewRecord(collection)
-				record.Set("watched_at", o.WatchedAt)
-				record.Set("user", user)
-				record.Set("type", o.Type)
-				record.Set("trakt_id", o.IDs.Trakt)
-				record.Set("runtime", o.Runtime)
-				switch typ {
-				case "movies":
-					record.Set("data", o)
-				case "episodes":
-					record.Set("show_id", o.Show.IDs.Trakt)
-					record.Set("data", o.Show)
-				}
-				t.app.Dao().SaveRecord(record)
+			t.app.Dao().SaveRecord(record)
 
-			}
-		}(i, wg)
+		}
+		// }(i, wg)
 	}
 }
 
