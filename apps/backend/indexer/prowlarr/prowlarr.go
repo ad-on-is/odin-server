@@ -53,9 +53,9 @@ func (indexer *Indexer) HasTvParam(param string) bool {
 }
 
 func Search(payload common.Payload) {
-	payload.Title = url.QueryEscape(payload.Title)
-	payload.EpisodeTitle = url.QueryEscape(payload.EpisodeTitle)
-	payload.ShowTitle = url.QueryEscape(payload.ShowTitle)
+	payload.Title = url.QueryEscape(common.Strip(payload.Title))
+	payload.EpisodeTitle = url.QueryEscape(common.Strip(payload.EpisodeTitle))
+	payload.ShowTitle = url.QueryEscape(common.Strip(payload.ShowTitle))
 
 	indexers := getIndexerList(payload)
 
@@ -178,11 +178,10 @@ func getTorrents(indexer Indexer, payload common.Payload) []common.Torrent {
 		}
 
 	}
-	log.Debug(t)
 
-	query := ""
+	query := "&t=" + t
 	if q != "" {
-		query = "&q=" + q
+		query = "&query=" + q
 	}
 	if imdbid != "" {
 		query = query + "&imdbid=" + imdbid
@@ -220,12 +219,14 @@ func getTorrents(indexer Indexer, payload common.Payload) []common.Torrent {
 	prowlarrKey := os.Getenv("PROWLARR_KEY")
 
 	url := fmt.Sprintf(
-		"%s/api/v1/search?apikey=%s&Type=search&Indexer=%d&query=%s",
+		"%s/api/v1/search?apikey=%s&indexerId=%d%s",
 		prowlarrUrl,
 		prowlarrKey,
 		indexer.Id,
 		query,
 	)
+
+	log.Info(url)
 
 	type Res struct {
 		Title       string `json:"title"`
