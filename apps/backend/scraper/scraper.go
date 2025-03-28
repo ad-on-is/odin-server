@@ -82,38 +82,56 @@ func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
 
 	i := 0
 	d := 0
+
+	done := []string{}
 	go func() {
-		done := []string{}
-
-		for {
-			select {
-			case k, ok := <-torrentQueueHighPrio:
-				if !ok {
-					continue
-				}
-
-				s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
-			default:
-				select {
-				case k, ok := <-torrentQueueNormalPrio:
-					if !ok {
-						continue
-					}
-					s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
-				default:
-					select {
-					case k, ok := <-torrentQueueLowPrio:
-						if !ok {
-							continue
-						}
-						s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
-					default:
-					}
-
-				}
-			}
+		for k := range torrentQueueHighPrio {
+			s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
 		}
 	}()
+
+	go func() {
+		for k := range torrentQueueNormalPrio {
+			s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
+		}
+	}()
+
+	go func() {
+		for k := range torrentQueueLowPrio {
+			s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
+		}
+	}()
+
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case k, ok := <-torrentQueueHighPrio:
+	// 			if !ok {
+	// 				continue
+	// 			}
+	//
+	// 			s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
+	// 		default:
+	// 			select {
+	// 			case k, ok := <-torrentQueueNormalPrio:
+	// 				if !ok {
+	// 					continue
+	// 				}
+	// 				s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
+	// 			default:
+	// 				select {
+	// 				case k, ok := <-torrentQueueLowPrio:
+	// 					if !ok {
+	// 						continue
+	// 					}
+	// 					s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
+	// 				default:
+	// 				}
+	//
+	// 			}
+	// 		}
+	// 	}
+	// }()
 	indexer.Index(data)
 
 	go func() {
