@@ -12,6 +12,7 @@ import (
 	"github.com/odin-movieshow/backend/types"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/models"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -130,20 +131,20 @@ func (h *Helpers) ReadRDCacheByResource(resource string) []types.Torrent {
 }
 
 func (h *Helpers) WriteRDCache(resource string, magnet string, data interface{}) {
-	h.WriteCache("stream", resource, magnet, &data, 12)
-	// log.Info("cache write", "for", "RD", "resource", resource)
-	// record, err := h.app.Dao().
-	// 	FindFirstRecordByFilter("rd_resolved", "magnet = {:magnet}", dbx.Params{"magnet": magnet})
-	//
-	// if err == nil {
-	// 	record.Set("data", &data)
-	// 	h.app.Dao().SaveRecord(record)
-	// } else {
-	// 	collection, _ := h.app.Dao().FindCollectionByNameOrId("rd_resolved")
-	// 	record := models.NewRecord(collection)
-	// 	record.Set("data", &data)
-	// 	record.Set("magnet", magnet)
-	// 	record.Set("resource", resource)
-	// 	h.app.Dao().SaveRecord(record)
-	// }
+	// h.WriteCache("stream", resource, magnet, &data, 12)
+	log.Info("cache write", "for", "RD", "resource", resource)
+	record, err := h.app.Dao().
+		FindFirstRecordByFilter("rd_resolved", "magnet = {:magnet}", dbx.Params{"magnet": magnet})
+
+	if err == nil {
+		record.Set("data", &data)
+		h.app.Dao().SaveRecord(record)
+	} else {
+		collection, _ := h.app.Dao().FindCollectionByNameOrId("rd_resolved")
+		record := models.NewRecord(collection)
+		record.Set("data", &data)
+		record.Set("magnet", magnet)
+		record.Set("resource", resource)
+		h.app.Dao().SaveRecord(record)
+	}
 }
