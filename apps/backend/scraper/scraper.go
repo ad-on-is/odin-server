@@ -182,8 +182,9 @@ func (s *Scraper) unrestrict(
 	}
 	k.Links = us
 	log.Debug("Unrestricted: " + k.ReleaseTitle)
-	s.helpers.WriteRDCache(topic, k.Magnet, k)
 	kstr, _ := json.Marshal(k)
+	j, _ := json.Marshal(k)
+	s.helpers.WriteCache("stream", k.Magnet, topic, j, 12)
 	mqt.Publish(topic, 0, false, kstr)
 	return true
 }

@@ -495,12 +495,12 @@ func (t *Trakt) AssignWatched(objmap []types.TraktItem, typ string) []types.Trak
 }
 
 func (t *Trakt) GetSeasons(id int) any {
-	// cache := t.helpers.ReadTraktSeasonCache(uint(id))
-	// if cache != nil {
-	// 	return cache
-	// }
+	cache := t.helpers.ReadCache("trakt", fmt.Sprintf("%d", id), "seasons")
+	if cache != nil {
+		return cache
+	}
 	endpoint := fmt.Sprintf("/shows/%d/seasons?extended=full,episodes", id)
 	result, _, _ := t.CallEndpoint(endpoint, "GET", types.TraktParams{})
-	t.helpers.WriteTraktSeasonCache(uint(id), &result)
+	t.helpers.WriteCache("trakt", fmt.Sprintf("%d", id), "seasons", &result, 12)
 	return result
 }

@@ -54,7 +54,7 @@ func (t *Tmdb) PopulateTMDB(
 	}
 	var tmdbObj any
 	url := fmt.Sprintf("/%s/%d", tmdbResource, id)
-	cache := t.helpers.ReadTmdbCache(id, resource)
+	cache := t.helpers.ReadCache("tmdb", fmt.Sprintf("%d", id), resource)
 	if cache != nil {
 		tmdbObj = cache
 	} else {
@@ -71,7 +71,7 @@ func (t *Tmdb) PopulateTMDB(
 		objmap[k].Show.Tmdb = tmdbObj
 	}
 	if cache == nil {
-		t.helpers.WriteTmdbCache(id, resource, &tmdbObj)
+		t.helpers.WriteCache("tmdb", fmt.Sprintf("%d", id), resource, &tmdbObj, 12)
 	}
 }
 
