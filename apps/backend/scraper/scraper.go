@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/odin-movieshow/backend/cache"
 	"github.com/odin-movieshow/backend/common"
 	"github.com/odin-movieshow/backend/downloader/alldebrid"
 	"github.com/odin-movieshow/backend/downloader/realdebrid"
@@ -21,6 +22,7 @@ type Scraper struct {
 	app        *pocketbase.PocketBase
 	settings   *settings.Settings
 	helpers    *helpers.Helpers
+	cache      *cache.Cache
 	realdebrid *realdebrid.RealDebrid
 	alldebrid  *alldebrid.AllDebrid
 }
@@ -54,7 +56,7 @@ func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
 	torrentQueueNormalPrio := make(chan types.Torrent)
 	torrentQueueHighPrio := make(chan types.Torrent)
 
-	allTorrentsUnrestricted := s.helpers.ReadRDCacheByResource(topic)
+	allTorrentsUnrestricted := s.cache.ReadRDCacheByResource(topic)
 	for _, u := range allTorrentsUnrestricted {
 		cstr, _ := json.Marshal(u)
 		mqt.Publish(topic, 0, false, cstr)
@@ -184,7 +186,7 @@ func (s *Scraper) unrestrict(
 	log.Debug("Unrestricted: " + k.ReleaseTitle)
 	kstr, _ := json.Marshal(k)
 	j, _ := json.Marshal(k)
-	s.helpers.WriteCache("stream", k.Magnet, topic, j, 12)
+	s.cache.WriteCache("stream", k.Magnet, topic, j, 12)
 	mqt.Publish(topic, 0, false, kstr)
 	return true
 }

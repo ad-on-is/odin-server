@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/odin-movieshow/backend/helpers"
+	"github.com/odin-movieshow/backend/cache"
 	"github.com/odin-movieshow/backend/settings"
 	"github.com/odin-movieshow/backend/types"
 	"github.com/thoas/go-funk"
@@ -19,11 +19,11 @@ import (
 
 type Tmdb struct {
 	settings *settings.Settings
-	helpers  *helpers.Helpers
+	cache    *cache.Cache
 }
 
-func New(settings *settings.Settings, helpers *helpers.Helpers) *Tmdb {
-	return &Tmdb{settings: settings, helpers: helpers}
+func New(settings *settings.Settings, cache *cache.Cache) *Tmdb {
+	return &Tmdb{settings: settings, cache: cache}
 }
 
 const (
@@ -54,7 +54,7 @@ func (t *Tmdb) PopulateTMDB(
 	}
 	var tmdbObj any
 	url := fmt.Sprintf("/%s/%d", tmdbResource, id)
-	cache := t.helpers.ReadCache("tmdb", fmt.Sprintf("%d", id), resource)
+	cache := t.cache.ReadCache("tmdb", fmt.Sprintf("%d", id), resource)
 	if cache != nil {
 		tmdbObj = cache
 	} else {
@@ -71,7 +71,7 @@ func (t *Tmdb) PopulateTMDB(
 		objmap[k].Show.Tmdb = tmdbObj
 	}
 	if cache == nil {
-		t.helpers.WriteCache("tmdb", fmt.Sprintf("%d", id), resource, &tmdbObj, 12)
+		t.cache.WriteCache("tmdb", fmt.Sprintf("%d", id), resource, &tmdbObj, 12)
 	}
 }
 

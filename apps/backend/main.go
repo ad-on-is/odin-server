@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/joho/godotenv"
+	"github.com/odin-movieshow/backend/cache"
 	"github.com/odin-movieshow/backend/common"
 	"github.com/odin-movieshow/backend/downloader/alldebrid"
 	"github.com/odin-movieshow/backend/downloader/realdebrid"
@@ -101,7 +102,7 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	conf := pocketbase.Config{DefaultDev: false}
+	conf := pocketbase.Config{DefaultDev: true}
 	app := pocketbase.NewWithConfig(conf)
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Automigrate: true,
@@ -109,9 +110,10 @@ func main() {
 
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		settings := settings.New(app)
+		cache := cache.New(app)
 		helpers := helpers.New(app)
-		tmdb := tmdb.New(settings, helpers)
-		trakt := trakt.New(app, tmdb, settings, helpers)
+		tmdb := tmdb.New(settings, cache)
+		trakt := trakt.New(app, tmdb, settings, cache)
 		realdebrid := realdebrid.New(app, settings)
 		alldebrid := alldebrid.New(app, settings)
 		scraper := scraper.New(app, settings, helpers, realdebrid, alldebrid)

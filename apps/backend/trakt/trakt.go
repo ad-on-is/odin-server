@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/odin-movieshow/backend/helpers"
+	"github.com/odin-movieshow/backend/cache"
 	"github.com/odin-movieshow/backend/settings"
 	"github.com/odin-movieshow/backend/tmdb"
 	"github.com/odin-movieshow/backend/types"
@@ -34,15 +34,15 @@ type Trakt struct {
 	app      *pocketbase.PocketBase
 	tmdb     *tmdb.Tmdb
 	settings *settings.Settings
-	helpers  *helpers.Helpers
+	cache    *cache.Cache
 }
 
-func New(app *pocketbase.PocketBase, tmdb *tmdb.Tmdb, settings *settings.Settings, helpers *helpers.Helpers) *Trakt {
+func New(app *pocketbase.PocketBase, tmdb *tmdb.Tmdb, settings *settings.Settings, cache *cache.Cache) *Trakt {
 	return &Trakt{
 		app:      app,
 		tmdb:     tmdb,
 		settings: settings,
-		helpers:  helpers,
+		cache:    cache,
 	}
 }
 
@@ -495,12 +495,12 @@ func (t *Trakt) AssignWatched(objmap []types.TraktItem, typ string) []types.Trak
 }
 
 func (t *Trakt) GetSeasons(id int) any {
-	cache := t.helpers.ReadCache("trakt", fmt.Sprintf("%d", id), "seasons")
+	cache := t.cache.ReadCache("trakt", fmt.Sprintf("%d", id), "seasons")
 	if cache != nil {
 		return cache
 	}
 	endpoint := fmt.Sprintf("/shows/%d/seasons?extended=full,episodes", id)
 	result, _, _ := t.CallEndpoint(endpoint, "GET", types.TraktParams{})
-	t.helpers.WriteCache("trakt", fmt.Sprintf("%d", id), "seasons", &result, 12)
+	t.cache.WriteCache("trakt", fmt.Sprintf("%d", id), "seasons", &result, 12)
 	return result
 }
