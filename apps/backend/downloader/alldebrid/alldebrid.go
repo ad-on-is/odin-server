@@ -138,6 +138,7 @@ func (ad *AllDebrid) Unrestrict(m string) []types.Unrestricted {
 	ad.CallEndpoint("/magnet/upload?magnets[]="+m, "GET", nil, &res)
 
 	if len(res.Data.Magnets) == 0 {
+		log.Debug("No magnets found for", m)
 		return nil
 	}
 
@@ -151,6 +152,7 @@ func (ad *AllDebrid) Unrestrict(m string) []types.Unrestricted {
 	)
 
 	if !magnetReady {
+		log.Debug("Magnet not available in cache", magnetId)
 		return nil
 	}
 
@@ -165,6 +167,7 @@ func (ad *AllDebrid) Unrestrict(m string) []types.Unrestricted {
 	ad.CallEndpoint("/magnet/files?id[]="+magnetId, "GET", nil, &files)
 
 	if len(files.Data.Magnets) == 0 || len(files.Data.Magnets[0].Files) == 0 {
+		log.Debug("No files found for magnet", magnetId)
 		return nil
 	}
 
@@ -180,18 +183,11 @@ func (ad *AllDebrid) Unrestrict(m string) []types.Unrestricted {
 			Data struct {
 				Link     string `json:"link"`
 				Filename string `json:"filename"`
-				Streams  []struct {
-					Id string `json:"id"`
-				} `json:"streams"`
-				Filesize int `json:"filesize"`
+				Filesize int    `json:"filesize"`
 			} `json:"data"`
 		}
 		ad.CallEndpoint("/link/unlock?link="+link, "GET", nil, &u)
 		fname := u.Data.Filename
-		if fname == "" {
-			continue
-		}
-		log.Debug(fname)
 		mimetype := mime.TypeByExtension(fname[strings.LastIndex(fname, "."):])
 
 		isVideo := strings.Contains(

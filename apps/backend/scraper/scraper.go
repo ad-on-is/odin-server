@@ -30,11 +30,12 @@ type Scraper struct {
 func New(
 	app *pocketbase.PocketBase,
 	settings *settings.Settings,
+	cache *cache.Cache,
 	helpers *helpers.Helpers,
 	realdebrid *realdebrid.RealDebrid,
 	alldebrid *alldebrid.AllDebrid,
 ) *Scraper {
-	return &Scraper{app: app, settings: settings, helpers: helpers, realdebrid: realdebrid, alldebrid: alldebrid}
+	return &Scraper{app: app, settings: settings, helpers: helpers, cache: cache, realdebrid: realdebrid, alldebrid: alldebrid}
 }
 
 func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
@@ -56,7 +57,7 @@ func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
 	torrentQueueNormalPrio := make(chan types.Torrent)
 	torrentQueueHighPrio := make(chan types.Torrent)
 
-	allTorrentsUnrestricted := s.cache.ReadRDCacheByResource(topic)
+	allTorrentsUnrestricted := s.cache.GetCachedTorrents("stream:" + topic)
 	for _, u := range allTorrentsUnrestricted {
 		cstr, _ := json.Marshal(u)
 		mqt.Publish(topic, 0, false, cstr)
@@ -104,36 +105,6 @@ func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
 		}
 	}()
 
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case k, ok := <-torrentQueueHighPrio:
-	// 			if !ok {
-	// 				continue
-	// 			}
-	//
-	// 			s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
-	// 		default:
-	// 			select {
-	// 			case k, ok := <-torrentQueueNormalPrio:
-	// 				if !ok {
-	// 					continue
-	// 				}
-	// 				s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
-	// 			default:
-	// 				select {
-	// 				case k, ok := <-torrentQueueLowPrio:
-	// 					if !ok {
-	// 						continue
-	// 					}
-	// 					s.handlePrio(&i, &d, &done, k, &allTorrentsUnrestricted, mqt, topic)
-	// 				default:
-	// 				}
-	//
-	// 			}
-	// 		}
-	// 	}
-	// }()
 	indexer.Index(data)
 
 	go func() {
@@ -153,8 +124,6 @@ func (s *Scraper) handlePrio(i *int, d *int, done *[]string, k types.Torrent, al
 	*i++
 	// Filter quality from settings
 	if !funk.Contains(*done, k.Magnet) {
-		// if len(*done) == 0 || k.Quality != "720p" && k.Quality != "SD" &&
-		// 	k.Quality != "CAM" {
 
 		isUnrestricted := funk.Find(*allTorrentsUnrestricted, func(s types.Torrent) bool {
 			return s.Magnet == k.Magnet
@@ -183,10 +152,9 @@ func (s *Scraper) unrestrict(
 		return false
 	}
 	k.Links = us
-	log.Debug("Unrestricted: " + k.ReleaseTitle)
+	log.Info("Found streams for ", k.ReleaseTitle)
 	kstr, _ := json.Marshal(k)
-	j, _ := json.Marshal(k)
-	s.cache.WriteCache("stream", k.Magnet, topic, j, 12)
+	s.cache.WriteCache("stream", k.Hash, topic, k, 12)
 	mqt.Publish(topic, 0, false, kstr)
 	return true
 }

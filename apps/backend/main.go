@@ -116,7 +116,7 @@ func main() {
 		trakt := trakt.New(app, tmdb, settings, cache)
 		realdebrid := realdebrid.New(app, settings)
 		alldebrid := alldebrid.New(app, settings)
-		scraper := scraper.New(app, settings, helpers, realdebrid, alldebrid)
+		scraper := scraper.New(app, settings, cache, helpers, realdebrid, alldebrid)
 
 		date := time.Now()
 

@@ -34,12 +34,36 @@ func New(app *pocketbase.PocketBase) *Cache {
 	return &Cache{app: app, redis: rdb}
 }
 
+func (c *Cache) GetCachedTorrents(prefix string) []types.Torrent {
+	ctx := context.Background()
+	keys, err := c.redis.Keys(ctx, prefix+":*").Result()
+	if err != nil {
+		return nil
+	}
+	torrents := []types.Torrent{}
+	for _, key := range keys {
+		data, err := c.redis.Get(ctx, key).Result()
+		if err != nil {
+			continue
+		}
+		var torrent types.Torrent
+		err = json.Unmarshal([]byte(data), &torrent)
+		if err != nil {
+			log.Error("Failed to unmarshal torrent data", "key", key, "error", err)
+			continue
+		}
+		torrents = append(torrents, torrent)
+	}
+
+	return torrents
+}
+
 func (c *Cache) ReadCache(service string, id string, resource string) interface{} {
 	if c.redis == nil {
 		return nil
 	}
 	ctx := context.Background()
-	key := fmt.Sprintf("%s-%s-%s", service, resource, id)
+	key := fmt.Sprintf("%s:%s:%s", service, resource, id)
 
 	data, err := c.redis.Get(ctx, key).Result()
 	if err != nil {
@@ -61,7 +85,7 @@ func (c *Cache) WriteCache(service string, id string, resource string, data any,
 		return
 	}
 	ctx := context.Background()
-	key := fmt.Sprintf("%s-%s-%s", service, resource, id)
+	key := fmt.Sprintf("%s:%s:%s", service, resource, id)
 
 	if data == nil {
 		return
@@ -77,24 +101,24 @@ func (c *Cache) WriteCache(service string, id string, resource string, data any,
 	}
 }
 
-func (c *Cache) ReadRDCache(resource string, magnet string) *types.Torrent {
-	record, err := c.app.Dao().
-		FindFirstRecordByFilter("rd_resolved", "magnet = {:magnet}", dbx.Params{"magnet": magnet})
-	var res types.Torrent
-	if err == nil {
-		err := record.UnmarshalJSONField("data", &res)
-		date := record.GetDateTime("updated")
-		now := time.Now().Add(time.Duration((-8) * time.Hour))
-		if err == nil {
-			if date.Time().Before(now) {
-				return nil
-			}
-			log.Debug("cache hit", "for", "RD", "resource", resource)
-			return &res
-		}
-	}
-	return nil
-}
+// func (c *Cache) ReadRDCache(resource string, magnet string) *types.Torrent {
+// 	record, err := c.app.Dao().
+// 		FindFirstRecordByFilter("rd_resolved", "magnet = {:magnet}", dbx.Params{"magnet": magnet})
+// 	var res types.Torrent
+// 	if err == nil {
+// 		err := record.UnmarshalJSONField("data", &res)
+// 		date := record.GetDateTime("updated")
+// 		now := time.Now().Add(time.Duration((-8) * time.Hour))
+// 		if err == nil {
+// 			if date.Time().Before(now) {
+// 				return nil
+// 			}
+// 			log.Debug("cache hit", "for", "RD", "resource", resource)
+// 			return &res
+// 		}
+// 	}
+// 	return nil
+// }
 
 func (c *Cache) ReadRDCacheByResource(resource string) []types.Torrent {
 	records, err := c.app.Dao().
