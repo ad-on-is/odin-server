@@ -16,6 +16,11 @@
 									<input type="checkbox" v-model="element.big" class="checkbox checkbox-secondary checkbox-sm" />
 								</label>
 								<label class="cursor-pointer label">
+									<span class="label-text mr-2">Cache</span>
+									<input type="checkbox" v-model="element.cache" class="checkbox checkbox-secondary checkbox-sm" />
+								</label>
+
+								<label class="cursor-pointer label">
 									<span class="label-text mr-2">Paginate</span>
 									<input type="checkbox" v-model="element.paginate" class="checkbox checkbox-secondary checkbox-sm" />
 								</label>
@@ -56,8 +61,8 @@
 	import draggable from 'vuedraggable'
 
 	const templates = [
-		{ title: 'Movies', url: '/movies', big: false, paginate: false },
-		{ title: 'Shows', url: '/movies', big: false, paginate: false },
+		{ title: 'Movies', url: '/movies', big: false, paginate: false, cache: true },
+		{ title: 'Shows', url: '/movies', big: false, paginate: false, cache: true },
 	]
 
 	if (sections === null) {
@@ -73,6 +78,7 @@
 			title: '',
 			url: '',
 			big: false,
+			cache: true,
 			paginate: false,
 		})
 	}

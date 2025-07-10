@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/odin-movieshow/backend/cache"
+	"github.com/odin-movieshow/backend/common"
 	"github.com/odin-movieshow/backend/settings"
 	"github.com/odin-movieshow/backend/tmdb"
 	"github.com/odin-movieshow/backend/types"
@@ -305,6 +306,7 @@ func (t *Trakt) itemsToObj(items []types.TraktItem) []map[string]any {
 
 func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktParams) (any, http.Header, int) {
 	var objmap any
+	endpoint = common.ParseDates(endpoint)
 
 	hs := map[string]string{}
 	if params.Headers != nil {
@@ -503,4 +505,70 @@ func (t *Trakt) GetSeasons(id int) any {
 	result, _, _ := t.CallEndpoint(endpoint, "GET", types.TraktParams{})
 	t.cache.WriteCache("trakt", fmt.Sprintf("%d", id), "seasons", &result, 12)
 	return result
+}
+
+func (t *Trakt) FillCaches() {
+	records := []*models.Record{}
+	t.app.Dao().RecordQuery("users").All(&records)
+
+	for _, r := range records {
+
+		var sections struct {
+			Home   []types.TraktSection `json:"home"`
+			Movies []types.TraktSection `json:"movies"`
+			Shows  []types.TraktSection `json:"shows"`
+		}
+		if err := r.UnmarshalJSONField("trakt_sections", &sections); err != nil {
+			continue
+		}
+		for _, s := range sections.Home {
+			t.cacheSection(s, r)
+		}
+		for _, s := range sections.Movies {
+			t.cacheSection(s, r)
+		}
+
+		for _, s := range sections.Shows {
+			t.cacheSection(s, r)
+		}
+
+	}
+}
+
+func (t *Trakt) cacheSection(s types.TraktSection, r *models.Record) {
+	if !s.Cache {
+		return
+	}
+	var token map[string]any
+	theaders := map[string]string{}
+
+	r.UnmarshalJSONField("trakt_token", &token)
+	if token != nil && token["access_token"] != nil {
+		theaders["authorization"] = "Bearer " + token["access_token"].(string)
+	}
+
+	id := r.GetId()
+
+	u := common.ParseDates(s.URL)
+	log.Info(u, "id", id)
+
+	res, _, status := t.CallEndpoint(s.URL, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})
+	if status < 300 && res != nil {
+		t.cache.WriteCache("trakt", u, id, &res, 12)
+	}
+	if !s.Paginate {
+		return
+	}
+
+	for i := 1; i <= 10; i++ {
+		url := s.URL + "?page=" + strconv.Itoa(i)
+		u := common.ParseDates(url)
+		status = 300
+
+		res, _, status := t.CallEndpoint(url, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})
+		if status < 300 && res != nil {
+			t.cache.WriteCache("trakt", u, id, &res, 12)
+		}
+
+	}
 }

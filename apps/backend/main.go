@@ -154,6 +154,7 @@ func main() {
 		go func() {
 			// trakt.SyncHistory()
 			trakt.RefreshTokens()
+			trakt.FillCaches()
 		}()
 
 		e.Router.POST("/-/scrape", func(c echo.Context) error {
@@ -236,7 +237,13 @@ func main() {
 			info := apis.RequestInfo(c)
 
 			id := info.AuthRecord.Id
+
 			url := strings.ReplaceAll(c.Request().URL.String(), "/-/trakt", "")
+			cache := cache.ReadCache("trakt", common.ParseDates(url), id)
+
+			if cache != nil {
+				return c.JSON(http.StatusOK, cache)
+			}
 
 			t := make(map[string]any)
 			u, _ := app.Dao().FindRecordById("users", id)
@@ -259,7 +266,6 @@ func main() {
 					trakt.SyncHistory(id)
 				}()
 			}
-			url = common.ParseDates(url)
 			result, headers, status := trakt.CallEndpoint(
 				url,
 				c.Request().Method,

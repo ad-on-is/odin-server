@@ -66,3 +66,11 @@ type TraktParams struct {
 	Donorm    bool
 	FetchTMDB bool
 }
+
+type TraktSection struct {
+	Big      bool   `json:"big"`
+	Paginate bool   `json:"paginate"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+	Cache    bool   `json:"cache"`
+}

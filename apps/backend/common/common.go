@@ -79,6 +79,7 @@ func ParseDates(str string) string {
 	now := time.Now()
 	// current := time.Now()
 	orig := str
+
 	for _, match := range matches {
 
 		yearVal := 0
@@ -92,24 +93,24 @@ func ParseDates(str string) string {
 			if match[2] == "-" {
 				val *= -1
 			}
-			if match[1] == "year" {
-
+			switch match[1] {
+			case "year":
 				yearVal = val
 				str = strings.ReplaceAll(str, match[0], "#year#")
-			} else if match[1] == "month" {
+			case "month":
 				monthVal = val
 				str = strings.ReplaceAll(str, match[0], "#month#")
-			} else if match[1] == "day" {
+			case "day":
 				dayVal = val
 				str = strings.ReplaceAll(str, match[0], "#day#")
 			}
 		}
 		now = now.AddDate(yearVal, monthVal, dayVal)
 
+		str = strings.ReplaceAll(str, "#day#", fmt.Sprintf("%d", now.Day()))
+		str = strings.ReplaceAll(str, "#month#", fmt.Sprintf("%d", now.Month()))
+		str = strings.ReplaceAll(str, "#year#", fmt.Sprintf("%d", now.Year()))
 	}
-	str = strings.ReplaceAll(str, "#day#", fmt.Sprintf("%d", now.Day()))
-	str = strings.ReplaceAll(str, "#month#", fmt.Sprintf("%d", now.Month()))
-	str = strings.ReplaceAll(str, "#year#", fmt.Sprintf("%d", now.Year()))
 
 	re2 := regexp.MustCompile("::monthdays::")
 
