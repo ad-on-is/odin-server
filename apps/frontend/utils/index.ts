@@ -9,7 +9,7 @@ export function parseTitle(title: string) {
 			try {
 				val = parseInt(m[3])
 			} catch (e) {
-				       val = 0
+				val = 0
 			}
 		}
 		if (m[2] === '-') {
