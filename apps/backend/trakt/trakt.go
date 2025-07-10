@@ -173,7 +173,7 @@ func (t *Trakt) RefreshTokens() {
 
 	for _, r := range records {
 		token := make(map[string]any)
-		if err := r.UnmarshalJSONField("trakt_token", &t); err == nil {
+		if err := r.UnmarshalJSONField("trakt_token", &token); err == nil {
 			data, _, status := t.CallEndpoint("/oauth/token", "POST", types.TraktParams{Body: map[string]any{"grant_type": "refresh_token", "client_id": os.Getenv("TRAKT_CLIENTID"), "client_secret": os.Getenv("TRAKT_SECRET"), "code": token["device_code"], "refresh_token": token["refresh_token"]}})
 			if status < 300 && data != nil {
 				data.(map[string]any)["device_code"] = token["device_code"]
