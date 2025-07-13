@@ -72,16 +72,23 @@ type Payload struct {
 	EpisodeTrakt  string `json:"episode_trakt"`
 }
 
-func ParseDates(str string) string {
-	re := regexp.MustCompile("::(year|month|day):(\\+|-)?(\\d+)?:")
+type DateReplacer struct {
+	str   string
+	add   [3]int
+	day   int
+	month int
+	year  int
+}
+
+func ParseDates(str string, date time.Time) string {
+	re := regexp.MustCompile(`::(year|month|day):(\+|-)?(\d+)?:`)
+	now := date
+
+	replacer := []DateReplacer{}
 
 	matches := re.FindAllStringSubmatch(str, -1)
-	now := time.Now()
-	// current := time.Now()
-	orig := str
 
 	for _, match := range matches {
-
 		yearVal := 0
 		monthVal := 0
 		dayVal := 0
@@ -96,46 +103,97 @@ func ParseDates(str string) string {
 			switch match[1] {
 			case "year":
 				yearVal = val
-				str = strings.ReplaceAll(str, match[0], "#year#")
 			case "month":
 				monthVal = val
-				str = strings.ReplaceAll(str, match[0], "#month#")
 			case "day":
 				dayVal = val
-				str = strings.ReplaceAll(str, match[0], "#day#")
 			}
+			replacer = append(replacer, DateReplacer{str: match[0], add: [3]int{yearVal, monthVal, dayVal}})
 		}
-		now = now.AddDate(yearVal, monthVal, dayVal)
+	}
+	newnow := now
 
-		str = strings.ReplaceAll(str, "#day#", fmt.Sprintf("%d", now.Day()))
-		str = strings.ReplaceAll(str, "#month#", fmt.Sprintf("%d", now.Month()))
-		str = strings.ReplaceAll(str, "#year#", fmt.Sprintf("%d", now.Year()))
+	for i, j := 0, len(replacer)-1; i < j; i, j = i+1, j-1 {
+		replacer[i], replacer[j] = replacer[j], replacer[i]
 	}
 
-	re2 := regexp.MustCompile("::monthdays::")
+	for i, r := range replacer {
+
+		year := now.Year()
+		month := int(now.Month())
+		day := now.Day()
+
+		year += r.add[0]
+		month += r.add[1]
+		if month < 1 {
+			month = 12 + month
+			year -= 1
+		}
+
+		day += r.add[2]
+
+		replacer[i].year = year
+		replacer[i].month = month
+		replacer[i].day = day
+
+		if strings.Contains(r.str, "year") {
+			if i > 0 && strings.Contains(str, r.str+"-") {
+				prev := replacer[i-1]
+				if prev.year != year && prev.month != month {
+					replacer[i].year = prev.year
+					year = prev.year
+				}
+			}
+			str = strings.ReplaceAll(str, r.str, fmt.Sprintf("%d", year))
+		}
+		if strings.Contains(r.str, "month") {
+			if i > 0 && strings.Contains(str, r.str+"-") {
+				prev := replacer[i-1]
+				if prev.month != month && prev.day != day {
+					replacer[i].month = prev.month
+					month = prev.month
+				}
+			}
+
+			str = strings.ReplaceAll(str, r.str, fmt.Sprintf("%d", month))
+		}
+		if strings.Contains(r.str, "day") {
+			str = strings.ReplaceAll(str, r.str, fmt.Sprintf("%d", day))
+		}
+	}
+
+	re = regexp.MustCompile(`(\d+)-(\d+)-(\d+)`)
+
+	matches = re.FindAllStringSubmatch(str, -1)
+	for _, match := range matches {
+		year, _ := strconv.Atoi(match[1])
+		month, _ := strconv.Atoi(match[2])
+		day, _ := strconv.Atoi(match[3])
+		newnow = time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+		rep := fmt.Sprintf("%d-%d-%d", newnow.Year(), int(newnow.Month()), newnow.Day())
+		str = strings.ReplaceAll(str, match[0], rep)
+	}
+
+	re2 := regexp.MustCompile(`::daysuntilnow:(\+|-)?(\d+)?:`)
 
 	matches2 := re2.FindAllStringSubmatch(str, -1)
-	dinm := daysInMonth(now)
+	daysUntilNow := int(time.Since(newnow).Hours() / 24)
+	val := 0
 	for _, match := range matches2 {
-		str = strings.ReplaceAll(str, match[0], fmt.Sprintf("%d", dinm))
-	}
+		if len(match) > 2 {
+			if v, err := strconv.Atoi(match[2]); err == nil {
+				val = v
+			}
+		}
 
-	log.Debug(orig, "new", str, "year", now.Year(), "month", now.Month(), "day", now.Day())
+		if match[1] == "-" {
+			val *= -1
+		}
+		daysUntilNow += val
+		str = strings.ReplaceAll(str, match[0], fmt.Sprintf("%d", daysUntilNow))
+	}
 
 	return str
-}
-
-func daysInMonth(t time.Time) int {
-	t = time.Date(t.Year(), t.Month(), 32, 0, 0, 0, 0, time.UTC)
-	daysInMonth := 32 - t.Day()
-	days := make([]int, daysInMonth)
-	for i := range days {
-		days[i] = i + 1
-	}
-
-	d := days[len(days)-1]
-	d += 1
-	return d
 }
 
 func SeparateByQuality(torrents []Torrent, payload Payload) []Torrent {
