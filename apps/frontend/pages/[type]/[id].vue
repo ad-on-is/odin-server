@@ -3,7 +3,7 @@
 		v-if="item"
 		class="bg-cover min-h-screen max-h-screen relative faded"
 		:style="{
-			backgroundImage: 'url(https://image.tmdb.org/t/p/w1280' + item['tmdb']['backdrop_path'] + ')',
+			backgroundImage: 'url(' + item['images']['fanart'] + ')',
 			backgroundPosition: 'center',
 			backgroundRepeat: 'no-repeat',
 			backgroundSize: 'cover',
@@ -28,6 +28,7 @@
 	const item = ref()
 	onMounted(async () => {
 		item.value = await useMedia().getDetail(useRoute().params.id as string, useRoute().params.type as string)
+		item.value.tmdb = await useMedia().getTmdb(item.value.type, item.value.ids['tmdb'])
 	})
 </script>
 

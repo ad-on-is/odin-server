@@ -102,7 +102,7 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	conf := pocketbase.Config{DefaultDev: false}
+	conf := pocketbase.Config{DefaultDev: true}
 	app := pocketbase.NewWithConfig(conf)
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Automigrate: true,
@@ -154,7 +154,7 @@ func main() {
 		go func() {
 			// trakt.SyncHistory()
 			trakt.RefreshTokens()
-			trakt.FillCaches()
+			// trakt.FillCaches()
 		}()
 
 		e.Router.POST("/-/scrape", func(c echo.Context) error {
@@ -202,8 +202,8 @@ func main() {
 				for _, t := range []string{"home", "movies", "shows"} {
 					s := sections[t].([]any)
 					for i := range s {
-						title := common.ParseDates(sections[t].([]any)[i].(map[string]any)["title"].(string))
-						url := common.ParseDates(sections[t].([]any)[i].(map[string]any)["url"].(string))
+						title := common.ParseDates(sections[t].([]any)[i].(map[string]any)["title"].(string), time.Now())
+						url := common.ParseDates(sections[t].([]any)[i].(map[string]any)["url"].(string), time.Now())
 						sections[t].([]any)[i].(map[string]any)["title"] = title
 						sections[t].([]any)[i].(map[string]any)["url"] = url
 					}
@@ -233,30 +233,81 @@ func main() {
 			return c.String(http.StatusOK, "OK")
 		}, RequireDeviceOrRecordAuth(app))
 
+		e.Router.Any("/-/tmdbdetail/:resource/:id", func(c echo.Context) error {
+			resource := c.PathParam("resource")
+			pid := c.PathParam("id")
+			id, _ := strconv.Atoi(pid)
+			tmdbResource := "movie"
+			if resource == "show" {
+				tmdbResource = "tv"
+			}
+
+			result := tmdb.GetItem(tmdbResource, resource, uint(id))
+
+			c.Response().Status = 200
+			return c.JSON(http.StatusOK, result)
+		}, RequireDeviceOrRecordAuth(app))
+
+		e.Router.GET("/-/traktseasons/:id", func(c echo.Context) error {
+			fmt.Println(c.PathParam("id"))
+			id, _ := strconv.Atoi(c.PathParam("id"))
+			res := trakt.GetSeasons(id)
+			return c.JSON(http.StatusOK, res)
+		}, RequireDeviceOrRecordAuth(app))
+
 		e.Router.Any("/-/trakt/*", func(c echo.Context) error {
 			info := apis.RequestInfo(c)
 
 			id := info.AuthRecord.Id
 
 			url := strings.ReplaceAll(c.Request().URL.String(), "/-/trakt", "")
-			cache := cache.ReadCache("trakt", common.ParseDates(url), id)
+			theaders := helpers.GetTraktHeadersForUser(apis.RequestInfo(c), url)
+
+			if strings.Contains(url, "traktnext") {
+				m := c.PathParam("months")
+				months, err := strconv.Atoi(m)
+				if err != nil {
+					months = 6
+				}
+
+				now := time.Now()
+				res := []map[string]any{}
+				date := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+				for i := 0; i <= months; i++ {
+					d := date
+					d = d.AddDate(0, i*(-1), 0)
+					lastOfMonth := d.AddDate(0, 1, -1)
+					s := d.Format("2006-01-02")
+					days := lastOfMonth.Day()
+					if i == 0 {
+						days = now.Day()
+					}
+					url := fmt.Sprintf("/calendars/my/shows/%s/%d", s, days)
+
+					log.Info("Fetching trakt calendar", "url", url)
+					theaders := helpers.GetTraktHeadersForUser(apis.RequestInfo(c), url)
+
+					result, _, _ := trakt.CallEndpoint(
+						url,
+						c.Request().Method,
+						types.TraktParams{
+							Body:      nil,
+							Donorm:    true,
+							Headers:   theaders,
+							FetchTMDB: true,
+						},
+					)
+					res = append(res, result.([]map[string]any)...)
+
+				}
+				return c.JSON(http.StatusOK, res)
+
+			}
+
+			cache := cache.ReadCache("trakt", common.ParseDates(url, time.Now()), id)
 
 			if cache != nil {
 				return c.JSON(http.StatusOK, cache)
-			}
-
-			t := make(map[string]any)
-			u, _ := app.Dao().FindRecordById("users", id)
-			u.UnmarshalJSONField("trakt_token", &t)
-			// delete(trakt.Headers, "authorization")
-			//
-			theaders := map[string]string{}
-
-			if t != nil && t["access_token"] != nil {
-				theaders["authorization"] = "Bearer " + t["access_token"].(string)
-			}
-			if strings.Contains(url, "fresh=true") {
-				delete(theaders, "authorization")
 			}
 
 			jsonData := apis.RequestInfo(c).Data
@@ -348,13 +399,6 @@ func main() {
 			c.Response().Status = status
 			return c.JSON(http.StatusOK, result)
 		}, apis.RequireAdminAuth())
-
-		e.Router.GET("/-/traktseasons/:id", func(c echo.Context) error {
-			fmt.Println(c.PathParam("id"))
-			id, _ := strconv.Atoi(c.PathParam("id"))
-			res := trakt.GetSeasons(id)
-			return c.JSON(http.StatusOK, res)
-		}, RequireDeviceOrRecordAuth(app))
 
 		e.Router.GET("/-/secrets", func(c echo.Context) error {
 			return c.JSON(http.StatusOK, map[string]string{"TRAKT_CLIENTID": os.Getenv("TRAKT_CLIENTID"), "TRAKT_SECRET": os.Getenv("TRAKT_SECRET")})

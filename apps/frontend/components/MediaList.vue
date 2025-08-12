@@ -11,8 +11,9 @@
 			<NuxtLink :to="useMedia().getLink(item)" v-for="item in data" @click="useMedia().setDetail(item)" class="no-underline">
 				<div class="card w-32 bg-base-300 shadow-md flex-shrink-0 rounded-md h-80">
 					<figure class="m-0 p-0">
-						<img v-if="item.tmdb && item.tmdb.poster_path" :src="'https://image.tmdb.org/t/p/w780' + item.tmdb.poster_path" />
-						<img v-else src="https://placehold.co/160x250/11111b/ffffff/png?text=no\nimage" />
+						<!-- <img v-if="item.tmdb && item.tmdb.poster_path" :src="'https://image.tmdb.org/t/p/w780' + item.tmdb.poster_path" /> -->
+						<img :src="item.images.poster[0]" />
+						<!-- <img v-else src="https://placehold.co/160x250/11111b/ffffff/png?text=no\nimage" /> -->
 					</figure>
 					<div class="card-body p-3 pb-5">
 						<p class="card-title m-0 text-sm">

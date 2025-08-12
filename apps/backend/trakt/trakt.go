@@ -47,7 +47,7 @@ func New(app *pocketbase.PocketBase, tmdb *tmdb.Tmdb, settings *settings.Setting
 	}
 }
 
-func (t *Trakt) removeDuplicates(objmap []types.TraktItem) []types.TraktItem {
+func (t *Trakt) RemoveDuplicates(objmap []types.TraktItem) []types.TraktItem {
 	showsSeen := []uint{}
 	toRemove := []int{}
 	for i, o := range objmap {
@@ -228,7 +228,7 @@ func (t *Trakt) normalize(objmap []types.TraktItem, isShow bool) []types.TraktIt
 	return objmap
 }
 
-func (t *Trakt) objToItems(objmap []any, isShow bool) []types.TraktItem {
+func (t *Trakt) ObjToItems(objmap []any, isShow bool) []types.TraktItem {
 	jm, err := json.Marshal(objmap)
 	if err == nil {
 		items := []types.TraktItem{}
@@ -256,7 +256,7 @@ func (t *Trakt) objToItems(objmap []any, isShow bool) []types.TraktItem {
 	return []types.TraktItem{}
 }
 
-func (t *Trakt) itemsToObj(items []types.TraktItem) []map[string]any {
+func (t *Trakt) ItemsToObj(items []types.TraktItem) []map[string]any {
 	m, err := json.Marshal(items)
 	o := []map[string]any{}
 	if err != nil {
@@ -306,7 +306,7 @@ func (t *Trakt) itemsToObj(items []types.TraktItem) []map[string]any {
 
 func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktParams) (any, http.Header, int) {
 	var objmap any
-	endpoint = common.ParseDates(endpoint)
+	endpoint = common.ParseDates(endpoint, time.Now())
 
 	hs := map[string]string{}
 	if params.Headers != nil {
@@ -346,7 +346,7 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktP
 			} else {
 				endpoint += "?"
 			}
-			endpoint += "extended=full&limit=30"
+			endpoint += "extended=full,images&limit=30"
 			if !strings.Contains(endpoint, "limit=") {
 				endpoint += "&limit=30"
 			}
@@ -370,13 +370,13 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktP
 		switch objmap := objmap.(type) {
 
 		case []any:
-			items := t.objToItems(objmap, strings.Contains(endpoint, "/shows"))
+			items := t.ObjToItems(objmap, strings.Contains(endpoint, "/shows"))
 			var wg sync.WaitGroup
 			var mux sync.Mutex
 
 			if len(items) == 0 || strings.Contains(endpoint, "sync/history") {
 				if params.FetchTMDB {
-					t.getTMDB(&wg, &mux, items)
+					t.getImages(&wg, &mux, items)
 				}
 				wg.Wait()
 				return items, respHeaders, status
@@ -387,16 +387,16 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktP
 			if strings.Contains(endpoint, "calendars") {
 				items = t.removeSeason0(items)
 				items = t.removeWatched(items)
-				items = t.removeDuplicates(items)
+				items = t.RemoveDuplicates(items)
 			}
 
 			if params.FetchTMDB {
-				t.getTMDB(&wg, &mux, items)
+				t.getImages(&wg, &mux, items)
 			}
 
 			wg.Wait()
 
-			return t.itemsToObj(items), respHeaders, status
+			return t.ItemsToObj(items), respHeaders, status
 
 		default:
 
@@ -409,13 +409,24 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktP
 	return objmap, respHeaders, status
 }
 
-func (t *Trakt) getTMDB(wg *sync.WaitGroup, _ *sync.Mutex, objmap []types.TraktItem) {
+func (t *Trakt) getImages(wg *sync.WaitGroup, _ *sync.Mutex, objmap []types.TraktItem) {
 	for k := range objmap {
-		wg.Add(1)
-		go func() {
-			t.tmdb.PopulateTMDB(k, objmap)
-			wg.Done()
-		}()
+		for i, f := range objmap[k].Images.Fanart {
+			objmap[k].Images.Fanart[i] = "https://" + f
+		}
+		for i, f := range objmap[k].Images.Poster {
+			objmap[k].Images.Poster[i] = "https://" + f
+		}
+		for i, f := range objmap[k].Images.Logo {
+			objmap[k].Images.Logo[i] = "https://" + f
+		}
+		if len(objmap[k].Images.Fanart) == 0 || len(objmap[k].Images.Poster) == 0 || len(objmap[k].Images.Logo) == 0 {
+			wg.Add(1)
+			go func() {
+				t.tmdb.PopulateTMDB(k, objmap)
+				wg.Done()
+			}()
+		}
 	}
 	wg.Wait()
 }
@@ -501,7 +512,7 @@ func (t *Trakt) GetSeasons(id int) any {
 	if cache != nil {
 		return cache
 	}
-	endpoint := fmt.Sprintf("/shows/%d/seasons?extended=full,episodes", id)
+	endpoint := fmt.Sprintf("/shows/%d/seasons?extended=full,images,episodes", id)
 	result, _, _ := t.CallEndpoint(endpoint, "GET", types.TraktParams{})
 	t.cache.WriteCache("trakt", fmt.Sprintf("%d", id), "seasons", &result, 12)
 	return result
@@ -549,7 +560,7 @@ func (t *Trakt) cacheSection(s types.TraktSection, r *models.Record) {
 
 	id := r.GetId()
 
-	u := common.ParseDates(s.URL)
+	u := common.ParseDates(s.URL, time.Now())
 	log.Info(u, "id", id)
 
 	res, _, status := t.CallEndpoint(s.URL, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})
@@ -562,7 +573,7 @@ func (t *Trakt) cacheSection(s types.TraktSection, r *models.Record) {
 
 	for i := 1; i <= 10; i++ {
 		url := s.URL + "?page=" + strconv.Itoa(i)
-		u := common.ParseDates(url)
+		u := common.ParseDates(url, time.Now())
 		status = 300
 
 		res, _, status := t.CallEndpoint(url, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})

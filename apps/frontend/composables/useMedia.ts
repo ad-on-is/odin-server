@@ -41,6 +41,11 @@ export const useMedia = defineStore('useMedia', () => {
 		return `${item['ids']['slug']}-${item['ids']['trakt']}`
 	}
 
+	const getTmdb = async (typ: string, id: number) => {
+		const res = await usePb().send(`/-/tmdbdetail/${typ}/${id}`, { method: 'GET' })
+		return res
+	}
+
 	const getLink = (item: any) => {
 		if (item['type'] === 'episode') {
 			return `/show/${getId(item)}`
@@ -76,6 +81,7 @@ export const useMedia = defineStore('useMedia', () => {
 	return {
 		setDetail,
 		getDetail,
+		getTmdb,
 		getList,
 		getLink,
 		detail,

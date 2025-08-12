@@ -2,7 +2,7 @@
 	<div>
 		<div class="grid grid-cols-2">
 			<div class="">
-				<p class="text-sm pt-10">{{ item.tmdb.production_companies.at(0).name }}</p>
+				<p v-if="item.tmdb" class="text-sm pt-10">{{ item.tmdb.production_companies.at(0).name }}</p>
 				<h1 class="m-0">{{ item.title }}</h1>
 				<h2 class="m-0 mt-2 mb-10">
 					{{ item.year }} | {{ item.runtime }} |
@@ -14,7 +14,7 @@
 				<p>{{ item.overview }}</p>
 			</div>
 		</div>
-		<div>
+		<div v-if="item.tmdb">
 			<h3>Cast & Characters</h3>
 			<div class="flex gap-8 overflow-y-scroll">
 				<div v-for="actor in item.tmdb.credits.cast" class="flex flex-col items-center">

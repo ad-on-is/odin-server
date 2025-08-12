@@ -30,6 +30,21 @@ const (
 	TMDB_URL = "https://api.themoviedb.org/3"
 )
 
+func (t *Tmdb) GetItem(tmdbResource string, resource string, id uint) any {
+	url := fmt.Sprintf("/%s/%d", tmdbResource, id)
+	cache := t.cache.ReadCache("tmdb", fmt.Sprintf("%d", id), resource)
+	if cache != nil {
+		return cache
+	} else {
+		res := t.CallEndpoint(url)
+		tmdb := t.prepare(res)
+		res = t.tmdbToObj(tmdb)
+		t.cache.WriteCache("tmdb", fmt.Sprintf("%d", id), resource, &res, 12)
+
+		return res
+	}
+}
+
 func (t *Tmdb) PopulateTMDB(
 	k int,
 	objmap []types.TraktItem,
@@ -52,26 +67,35 @@ func (t *Tmdb) PopulateTMDB(
 	if objmap[k].IDs.Tmdb == 0 {
 		return
 	}
-	var tmdbObj any
-	url := fmt.Sprintf("/%s/%d", tmdbResource, id)
-	cache := t.cache.ReadCache("tmdb", fmt.Sprintf("%d", id), resource)
-	if cache != nil {
-		tmdbObj = cache
-	} else {
-		tmdbObj = t.CallEndpoint(url)
-	}
+
+	tmdbObj := t.GetItem(tmdbResource, resource, id)
 
 	if tmdbObj == nil {
 		return
 	}
 	tmdb := t.prepare(tmdbObj)
 	tmdbObj = t.tmdbToObj(tmdb)
+	if len(objmap[k].Images.Fanart) == 0 {
+		objmap[k].Images.Fanart = []string{"https://image.tmdb.org/t/p/w1280/" + tmdb.BackdropPath}
+	}
+	if len(objmap[k].Images.Logo) == 0 {
+		objmap[k].Images.Logo = []string{"https://image.tmdb.org/t/p/w780/" + tmdb.LogoPath}
+	}
+	if len(objmap[k].Images.Poster) == 0 {
+		objmap[k].Images.Poster = []string{"https://image.tmdb.org/t/p/w780/" + tmdb.PosterPath}
+	}
 	objmap[k].Tmdb = tmdbObj
 	if objmap[k].Show != nil {
 		objmap[k].Show.Tmdb = tmdbObj
-	}
-	if cache == nil {
-		t.cache.WriteCache("tmdb", fmt.Sprintf("%d", id), resource, &tmdbObj, 12)
+		if len(objmap[k].Show.Images.Fanart) == 0 {
+			objmap[k].Show.Images.Fanart = []string{"https://image.tmdb.org/t/p/w1280/" + tmdb.BackdropPath}
+		}
+		if len(objmap[k].Show.Images.Logo) == 0 {
+			objmap[k].Show.Images.Logo = []string{"https://image.tmdb.org/t/p/w780/" + tmdb.LogoPath}
+		}
+		if len(objmap[k].Show.Images.Poster) == 0 {
+			objmap[k].Show.Images.Poster = []string{"https://image.tmdb.org/t/p/w780/" + tmdb.PosterPath}
+		}
 	}
 }
 

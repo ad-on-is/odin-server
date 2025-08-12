@@ -25,8 +25,10 @@ type TmdbItem struct {
 			FilePath  string  `json:"file_path"`
 		} `json:"logos"`
 	} `json:"images,omitempty"`
-	Original *interface{} `json:"original,omitempty"`
-	LogoPath string       `json:"logo_path"`
+	Original     *interface{} `json:"original,omitempty"`
+	LogoPath     string       `json:"logo_path"`
+	PosterPath   string       `json:"poster_path"`
+	BackdropPath string       `json:"backdrop_path"`
 }
 
 type TraktItem struct {
@@ -40,7 +42,12 @@ type TraktItem struct {
 	Type      string       `json:"type"`
 	WatchedAt string       `json:"watched_at"`
 	Genres    []string     `json:"genres"`
-	IDs       struct {
+	Images    struct {
+		Logo   []string `json:"logo"`
+		Poster []string `json:"poster"`
+		Fanart []string `json:"fanart"`
+	} `json:"images"`
+	IDs struct {
 		Slug  string `json:"slug"`
 		Imdb  string `json:"imdb"`
 		Trakt uint   `json:"trakt"`
