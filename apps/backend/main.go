@@ -261,7 +261,6 @@ func main() {
 		}, RequireDeviceOrRecordAuth(app))
 
 		e.Router.GET("/-/traktseasons/:id", func(c echo.Context) error {
-			fmt.Println(c.PathParam("id"))
 			id, _ := strconv.Atoi(c.PathParam("id"))
 			res := trakt.GetSeasons(id)
 			return c.JSON(http.StatusOK, res)

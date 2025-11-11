@@ -42,8 +42,6 @@ func (h *Helpers) GetTraktHeadersForUser(info *models.RequestInfo, url string) m
 		delete(theaders, "authorization")
 	}
 
-	fmt.Println(theaders)
-
 	return theaders
 }
 
