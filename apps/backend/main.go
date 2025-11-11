@@ -114,7 +114,6 @@ func main() {
 		}
 	}
 
-
 	conf := pocketbase.Config{DefaultDev: false}
 	app := pocketbase.NewWithConfig(conf)
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
@@ -313,7 +312,16 @@ func main() {
 					res = append(res, result.([]map[string]any)...)
 
 				}
-				return c.JSON(http.StatusOK, res)
+				result := make([]any, len(res))
+				for i, v := range res {
+					result[i] = v
+				}
+				tRes := trakt.ObjToItems(result, false)
+				tRes = funk.UniqBy(tRes, func(t types.TraktItem) string {
+					return t.Title
+				}).([]types.TraktItem)
+
+				return c.JSON(http.StatusOK, tRes)
 
 			}
 
