@@ -411,6 +411,26 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktP
 
 func (t *Trakt) getImages(wg *sync.WaitGroup, _ *sync.Mutex, objmap []types.TraktItem) {
 	for k := range objmap {
+
+		if objmap[k].Show != nil {
+			for i, f := range objmap[k].Show.Images.Fanart {
+				objmap[k].Show.Images.Fanart[i] = "https://" + f
+			}
+			for i, f := range objmap[k].Show.Images.Poster {
+				objmap[k].Show.Images.Poster[i] = "https://" + f
+			}
+			for i, f := range objmap[k].Show.Images.Logo {
+				objmap[k].Show.Images.Logo[i] = "https://" + f
+			}
+			if len(objmap[k].Show.Images.Fanart) == 0 || len(objmap[k].Show.Images.Poster) == 0 || len(objmap[k].Show.Images.Logo) == 0 {
+				wg.Add(1)
+				go func() {
+					t.tmdb.PopulateTMDB(k, objmap)
+					wg.Done()
+				}()
+			}
+		}
+
 		for i, f := range objmap[k].Images.Fanart {
 			objmap[k].Images.Fanart[i] = "https://" + f
 		}

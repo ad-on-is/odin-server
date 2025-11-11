@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
 	"github.com/odin-movieshow/backend/cache"
 	"github.com/odin-movieshow/backend/common"
@@ -101,6 +102,18 @@ func main() {
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
+
+	if os.Getenv("SENTRY_DSN") != "" {
+		err = sentry.Init(sentry.ClientOptions{
+			Dsn:            os.Getenv("SENTRY_DSN"),
+			Debug:          true,
+			SendDefaultPII: true,
+		})
+		if err != nil {
+			fmt.Println("Cannot connect to sentry", err)
+		}
+	}
+
 
 	conf := pocketbase.Config{DefaultDev: false}
 	app := pocketbase.NewWithConfig(conf)
