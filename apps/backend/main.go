@@ -284,33 +284,39 @@ func main() {
 				now := time.Now()
 				res := []map[string]any{}
 				date := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+				wg := sync.WaitGroup{}
 				for i := 0; i <= months; i++ {
-					d := date
-					d = d.AddDate(0, i*(-1), 0)
-					lastOfMonth := d.AddDate(0, 1, -1)
-					s := d.Format("2006-01-02")
-					days := lastOfMonth.Day()
-					if i == 0 {
-						days = now.Day()
-					}
-					url := fmt.Sprintf("/calendars/my/shows/%s/%d", s, days)
+					wg.Add(1)
+					go func() {
+						d := date
+						d = d.AddDate(0, i*(-1), 0)
+						lastOfMonth := d.AddDate(0, 1, -1)
+						s := d.Format("2006-01-02")
+						days := lastOfMonth.Day()
+						if i == 0 {
+							days = now.Day()
+						}
+						url := fmt.Sprintf("/calendars/my/shows/%s/%d", s, days)
 
-					log.Info("Fetching trakt calendar", "url", url)
-					theaders := helpers.GetTraktHeadersForUser(apis.RequestInfo(c), url)
+						log.Info("Fetching trakt calendar", "url", url)
+						theaders := helpers.GetTraktHeadersForUser(apis.RequestInfo(c), url)
 
-					result, _, _ := trakt.CallEndpoint(
-						url,
-						c.Request().Method,
-						types.TraktParams{
-							Body:      nil,
-							Donorm:    true,
-							Headers:   theaders,
-							FetchTMDB: true,
-						},
-					)
-					res = append(res, result.([]map[string]any)...)
+						result, _, _ := trakt.CallEndpoint(
+							url,
+							c.Request().Method,
+							types.TraktParams{
+								Body:      nil,
+								Donorm:    true,
+								Headers:   theaders,
+								FetchTMDB: true,
+							},
+						)
+						res = append(res, result.([]map[string]any)...)
+						wg.Done()
+					}()
 
 				}
+				wg.Wait()
 				result := make([]any, len(res))
 				for i, v := range res {
 					result[i] = v

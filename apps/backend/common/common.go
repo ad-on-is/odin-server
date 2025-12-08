@@ -87,6 +87,9 @@ func ParseDates(str string, date time.Time) string {
 	replacer := []DateReplacer{}
 
 	matches := re.FindAllStringSubmatch(str, -1)
+	// if len(matches) == 0 {
+	// 	return str
+	// }
 
 	for _, match := range matches {
 		yearVal := 0
@@ -170,7 +173,8 @@ func ParseDates(str string, date time.Time) string {
 		month, _ := strconv.Atoi(match[2])
 		day, _ := strconv.Atoi(match[3])
 		newnow = time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-		rep := fmt.Sprintf("%d-%d-%d", newnow.Year(), int(newnow.Month()), newnow.Day())
+		rep := newnow.Format("2006-01-02")
+		// rep := fmt.Sprintf("%d-%d-%d", newnow.Year(), int(newnow.Month()), newnow.Day())
 		str = strings.ReplaceAll(str, match[0], rep)
 	}
 
