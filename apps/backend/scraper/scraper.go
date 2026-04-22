@@ -8,34 +8,25 @@ import (
 	"github.com/odin-movieshow/backend/common"
 	"github.com/odin-movieshow/backend/downloader/alldebrid"
 	"github.com/odin-movieshow/backend/downloader/realdebrid"
-	"github.com/odin-movieshow/backend/helpers"
 	"github.com/odin-movieshow/backend/indexer"
-	"github.com/odin-movieshow/backend/settings"
 	"github.com/odin-movieshow/backend/types"
 	"github.com/thoas/go-funk"
 
 	"github.com/charmbracelet/log"
-	"github.com/pocketbase/pocketbase"
 )
 
 type Scraper struct {
-	app        *pocketbase.PocketBase
-	settings   *settings.Settings
-	helpers    *helpers.Helpers
 	cache      *cache.Cache
 	realdebrid *realdebrid.RealDebrid
 	alldebrid  *alldebrid.AllDebrid
 }
 
 func New(
-	app *pocketbase.PocketBase,
-	settings *settings.Settings,
 	cache *cache.Cache,
-	helpers *helpers.Helpers,
 	realdebrid *realdebrid.RealDebrid,
 	alldebrid *alldebrid.AllDebrid,
 ) *Scraper {
-	return &Scraper{app: app, settings: settings, helpers: helpers, cache: cache, realdebrid: realdebrid, alldebrid: alldebrid}
+	return &Scraper{cache: cache, realdebrid: realdebrid, alldebrid: alldebrid}
 }
 
 func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
@@ -59,6 +50,7 @@ func (s *Scraper) GetLinks(data common.Payload, mqt mqtt.Client) {
 
 	allTorrentsUnrestricted := s.cache.GetCachedTorrents("stream:" + topic)
 	for _, u := range allTorrentsUnrestricted {
+		log.Debug(u.ReleaseTitle)
 		cstr, _ := json.Marshal(u)
 		mqt.Publish(topic, 0, false, cstr)
 	}
