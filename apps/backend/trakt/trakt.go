@@ -305,6 +305,17 @@ func (t *Trakt) ItemsToObj(items []types.TraktItem) []map[string]any {
 }
 
 func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktParams) (any, http.Header, int) {
+
+	if !strings.Contains(endpoint, "/oauth") && !strings.Contains(endpoint, "users/settings") {
+
+		objcached := t.cache.ReadCache("trakt", fmt.Sprintf("%s-%s-%v", method, endpoint), "data")
+		headercached := t.cache.ReadCache("trakt", fmt.Sprintf("%s-%s-%v", method, endpoint), "headers")
+
+		if objcached != nil {
+			return objcached, headercached.(http.Header), 200
+		}
+	}
+
 	var objmap any
 	endpoint = common.ParseDates(endpoint, time.Now())
 
@@ -395,6 +406,11 @@ func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktP
 			}
 
 			wg.Wait()
+
+			if status < 300 {
+				t.cache.WriteCache("trakt", fmt.Sprintf("%s-%s-%v", method, endpoint), "data", &items, 1)
+				t.cache.WriteCache("trakt", fmt.Sprintf("%s-%s-%v", method, endpoint), "headers", &respHeaders, 1)
+			}
 
 			return t.ItemsToObj(items), respHeaders, status
 
@@ -528,13 +544,9 @@ func (t *Trakt) AssignWatched(objmap []types.TraktItem, typ string) []types.Trak
 }
 
 func (t *Trakt) GetSeasons(id int) any {
-	cache := t.cache.ReadCache("trakt", fmt.Sprintf("%d", id), "seasons")
-	if cache != nil {
-		return cache
-	}
+
 	endpoint := fmt.Sprintf("/shows/%d/seasons?extended=full,images,episodes", id)
 	result, _, _ := t.CallEndpoint(endpoint, "GET", types.TraktParams{})
-	t.cache.WriteCache("trakt", fmt.Sprintf("%d", id), "seasons", &result, 12)
 	return result
 }
 
@@ -583,23 +595,13 @@ func (t *Trakt) cacheSection(s types.TraktSection, r *models.Record) {
 	u := common.ParseDates(s.URL, time.Now())
 	log.Info(u, "id", id)
 
-	res, _, status := t.CallEndpoint(s.URL, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})
-	if status < 300 && res != nil {
-		t.cache.WriteCache("trakt", u, id, &res, 12)
-	}
+	t.CallEndpoint(s.URL, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})
+
 	if !s.Paginate {
 		return
 	}
 
 	for i := 1; i <= 10; i++ {
-		url := s.URL + "?page=" + strconv.Itoa(i)
-		u := common.ParseDates(url, time.Now())
-		status = 300
-
-		res, _, status := t.CallEndpoint(url, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})
-		if status < 300 && res != nil {
-			t.cache.WriteCache("trakt", u, id, &res, 12)
-		}
-
+		t.CallEndpoint(u, "GET", types.TraktParams{Headers: theaders, FetchTMDB: true})
 	}
 }
