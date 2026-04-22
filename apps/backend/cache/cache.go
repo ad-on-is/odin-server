@@ -63,7 +63,7 @@ func (c *Cache) ReadCache(service string, id string, resource string) interface{
 		return nil
 	}
 	ctx := context.Background()
-	key := fmt.Sprintf("%s:%s:%s", service, resource, id)
+	key := fmt.Sprintf("odin:%s:%s:%s", service, resource, id)
 
 	data, err := c.redis.Get(ctx, key).Result()
 	if err != nil {
@@ -85,7 +85,7 @@ func (c *Cache) WriteCache(service string, id string, resource string, data any,
 		return
 	}
 	ctx := context.Background()
-	key := fmt.Sprintf("%s:%s:%s", service, resource, id)
+	key := fmt.Sprintf("odin:%s:%s:%s", service, resource, id)
 
 	if data == nil {
 		return
