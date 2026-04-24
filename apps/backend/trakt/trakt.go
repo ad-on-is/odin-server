@@ -306,7 +306,7 @@ func (t *Trakt) ItemsToObj(items []types.TraktItem) []map[string]any {
 
 func (t *Trakt) CallEndpoint(endpoint string, method string, params types.TraktParams) (any, http.Header, int) {
 
-	if !strings.Contains(endpoint, "/oauth") && !strings.Contains(endpoint, "users/settings") {
+	if !strings.Contains(endpoint, "/oauth") && !strings.Contains(endpoint, "watchlist") {
 
 		objcached := t.cache.ReadCache("trakt", fmt.Sprintf("%s-%s-%v", method, endpoint), "data")
 		headercached := t.cache.ReadCache("trakt", fmt.Sprintf("%s-%s-%v", method, endpoint), "headers")
