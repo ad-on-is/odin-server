@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 type Torrent struct {
 	Scraper      string         `json:"scraper"`
 	Hash         string         `json:"hash"`
@@ -12,6 +14,22 @@ type Torrent struct {
 	Links        []Unrestricted `json:"links"`
 	Size         uint64         `json:"size"`
 	Seeds        uint64         `json:"seeds"`
+}
+
+type AIOItem struct {
+	URL        string      `json:"url"`
+	Filename   string      `json:"filename"`
+	Size       uint64      `json:"size"`
+	Addon      string      `json:"addon"`
+	Duration   json.Number `json:"duration"`
+	ParsedFile struct {
+		Resolution    string   `json:"resolution"`
+		Quality       string   `json:"quality"`
+		Encode        string   `json:"encodee"`
+		VisualTags    []string `json:"visualTags"`
+		AudioTags     []string `json:"audioTags"`
+		AudioChannels []string `json:"audioChannels"`
+	} `json:"parsedFile"`
 }
 
 type TmdbItem struct {
