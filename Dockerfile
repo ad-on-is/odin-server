@@ -11,7 +11,7 @@ WORKDIR /build/
 RUN npm i -g pnpm
 COPY ./apps/frontend/package.json .
 COPY ./apps/frontend/.npmrc .
-RUN pnpm i --approve-builds
+RUN pnpm i
 COPY ./apps/frontend .
 RUN pnpm run build
 
