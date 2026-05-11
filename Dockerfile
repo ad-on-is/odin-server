@@ -8,9 +8,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o odin-backend
 
 FROM node:alpine AS fe-builder
 WORKDIR /build/
-RUN npm i -g pnpm
+RUN npm i -g pnpm@8
 COPY ./apps/frontend/package.json .
-COPY ./apps/frontend/.npmrc .
+# COPY ./apps/frontend/.npmrc .
 RUN pnpm i
 COPY ./apps/frontend .
 RUN pnpm run build
