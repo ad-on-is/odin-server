@@ -9,7 +9,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o odin-backend
 FROM node:alpine AS fe-builder
 WORKDIR /build/
 RUN npm i -g pnpm
-COPY ./apps/frontend/package.json . 
+COPY ./apps/frontend/package.json .
+COPY ./apps/frontend/.npmrc .
 RUN pnpm i
 COPY ./apps/frontend .
 RUN pnpm run build
@@ -29,5 +30,3 @@ COPY ./entrypoint.sh /entrypoint.sh
 COPY ./version.txt /version.txt
 
 CMD ["/entrypoint.sh"]
-
-
