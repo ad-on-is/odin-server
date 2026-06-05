@@ -1,7 +1,7 @@
 {
   "name": "odin-movieshow",
   "private": true,
-  "version": "1.2.60",
+  "version": "1.2.61",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
