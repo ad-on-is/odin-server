@@ -78,6 +78,57 @@ type TraktItem struct {
 	Watched bool `json:"watched"`
 }
 
+type Episode struct {
+	Season      uint   `json:"season"`
+	Episode     uint   `json:"episode"`
+	Number      uint   `json:"number"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type Season struct {
+	Number   uint      `json:"number"`
+	Title    string    `json:"title"`
+	Episodes []Episode `json:"episodes"`
+}
+
+type SimklItem struct {
+	Tmdb      any          `json:"tmdb"`
+	Original  *interface{} `json:"original,omitempty"`
+	Show      *SimklItem   `json:"show,omitempty"`
+	Movie     *SimklItem   `json:"movie,omitempty"`
+	Episode   *SimklItem   `json:"episode,omitempty"`
+	Episodes  *[]SimklItem `json:"episodes,omitempty"`
+	Title     string       `json:"title"`
+	Type      string       `json:"type"`
+	WatchedAt string       `json:"watched_at"`
+	Genres    []string     `json:"genres"`
+	Poster    string       `json:"poster"`
+	Fanart    string       `json:"fanart"`
+	Language  string       `json:"language"`
+	Country   string       `json:"country"`
+	Images    struct {
+		Logo   []string `json:"logo"`
+		Poster []string `json:"poster"`
+		Fanart []string `json:"fanart"`
+	} `json:"images"`
+	IDs struct {
+		Slug       string `json:"slug"`
+		Imdb       string `json:"imdb"`
+		SimklID    uint   `json:"simkl_id"`
+		TraktMSlug string `json:"traktmslug"`
+		LetterSlug string `json:"letterslug"`
+		Tmdb       string `json:"tmdb"`
+		Tvdb       string `json:"tvdb"`
+	} `json:"ids"`
+	Runtime    *uint
+	RuntimeStr string `json:"runtime"`
+	Season     uint   `json:"season"`
+	Number     uint   `json:"number"`
+	WatchedBy  uint   `json:"watched"`
+	Watched    bool
+}
+
 type Unrestricted struct {
 	Filename string   `json:"filename"`
 	Download string   `json:"download"`
@@ -92,7 +143,22 @@ type TraktParams struct {
 	FetchTMDB bool
 }
 
+type SimklParams struct {
+	Body      map[string]any
+	Headers   map[string]string
+	Donorm    bool
+	FetchTMDB bool
+}
+
 type TraktSection struct {
+	Big      bool   `json:"big"`
+	Paginate bool   `json:"paginate"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+	Cache    bool   `json:"cache"`
+}
+
+type SimklSection struct {
 	Big      bool   `json:"big"`
 	Paginate bool   `json:"paginate"`
 	Title    string `json:"title"`

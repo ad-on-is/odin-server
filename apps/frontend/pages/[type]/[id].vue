@@ -28,6 +28,7 @@
 	const item = ref()
 	onMounted(async () => {
 		item.value = await useMedia().getDetail(useRoute().params.id as string, useRoute().params.type as string)
+		console.log(item.value)
 		item.value.tmdb = await useMedia().getTmdb(item.value.type, item.value.ids['tmdb'])
 	})
 </script>

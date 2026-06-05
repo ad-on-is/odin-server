@@ -4,20 +4,28 @@ export const useMedia = defineStore('useMedia', () => {
 	const lists = ref<{ [id: string]: [] }>({})
 
 	async function getDetail(id: string, type: string) {
-		const trakt = id.split('-').at(-1) || ''
+		const sp = id.split('-')
+		id = sp[sp.length - 1]
 		if (!detail.value[id] && id) {
-			const res = await usePb().send(`/-/trakt/search/trakt/${trakt}?type=${type}`, { method: 'GET' })
+			let t = type
+			if (type === 'movie') {
+				t = 'movies'
+			}
+			if (type === 'show') {
+				t = 'tv'
+			}
+			const res = await usePb().send(`/-/simkl/${t}/${id}`, { method: 'GET' })
 			if (res.length > 0) {
 				const item = res[0]
 				if (item.type === 'show') {
-					item.seasons = await usePb().send(`/-/traktseasons/${item.ids.trakt}`, { method: 'GET' })
+					item.seasons = await usePb().send(`/-/simklseasons/${id}`, { method: 'GET' })
 				}
 				detail.value[id] = item
 			}
 		} else {
 			if (detail.value[id].type === 'show') {
 				if (!detail.value[id].seasons) {
-					detail.value[id].seasons = await usePb().send(`/-/traktseasons/${detail.value[id].ids.trakt}`, { method: 'GET' })
+					detail.value[id].seasons = await usePb().send(`/-/simklseasons/${id}`, { method: 'GET' })
 				}
 			}
 		}
@@ -28,17 +36,17 @@ export const useMedia = defineStore('useMedia', () => {
 		if (term.length < 2) {
 			return []
 		}
-		const movies = await usePb().send(`/-/trakt/search/movie?query=${term}`, { method: 'GET' })
-		const shows = await usePb().send(`/-/trakt/search/show?query=${term}`, { method: 'GET' })
+		const movies = await usePb().send(`/-/simkl/search/movie?query=${term}`, { method: 'GET' })
+		const shows = await usePb().send(`/-/simkl/search/show?query=${term}`, { method: 'GET' })
 
 		return { movies, shows }
 	}
 
 	const getId = (item: any) => {
 		if (item['type'] === 'episode') {
-			return `${item['show']['ids']['slug']}-${item['show']['ids']['trakt']}`
+			return `${item['show']['ids']['slug']}-${item['show']['ids']['simkl_id']}`
 		}
-		return `${item['ids']['slug']}-${item['ids']['trakt']}`
+		return `${item['ids']['slug']}-${item['ids']['simkl_id']}`
 	}
 
 	const getTmdb = async (typ: string, id: number) => {
@@ -66,7 +74,7 @@ export const useMedia = defineStore('useMedia', () => {
 	const getList = async (url: string) => {
 		if (!lists.value[url]) {
 			try {
-				const res = await usePb().send(`/-/trakt${url}`, {
+				const res = await usePb().send(`/-/simkl/${url}`, {
 					method: 'GET',
 					cache: 'no-cache',
 				})

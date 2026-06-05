@@ -86,8 +86,8 @@ export const useStreams = defineStore('useStreams', () => {
 	const openModal = (item: any, show?: any, season?: string) => {
 		data.value = {
 			type: 'movie',
-			trakt: `${item.ids.trakt}`,
-			imdb: `${item.ids.imdb}`,
+			trakt: `${item.title}`,
+			imdb: `${item.ids?.imdb || ''}`,
 			title: `${item.title}`,
 			year: `${item.year}`,
 		} as MovieStream
@@ -99,9 +99,9 @@ export const useStreams = defineStore('useStreams', () => {
 				show_title: `${show.title}`,
 				show_year: `${show.year}`,
 				season_number: `${item.season}`,
-				episode_imdb: `${item.ids.imdb}`,
-				episode_trakt: `${item.ids.trakt}`,
-				episode_tvdb: `${item.ids.tvdb}`,
+				episode_imdb: `${item.ids?.imdb || ''}`,
+				episode_trakt: `${item.title}`,
+				episode_tvdb: `${item.ids?.tvdb || ''}`,
 				episode_title: `${item.title}`,
 				episode_number: `${item.number}`,
 				episode_year: `${item.year}`,

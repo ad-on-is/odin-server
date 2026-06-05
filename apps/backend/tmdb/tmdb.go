@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -95,6 +96,65 @@ func (t *Tmdb) PopulateTMDB(
 		}
 		if len(objmap[k].Show.Images.Poster) == 0 {
 			objmap[k].Show.Images.Poster = []string{"https://image.tmdb.org/t/p/w780/" + tmdb.PosterPath}
+		}
+	}
+}
+
+func (t *Tmdb) PopulateSimklTMDB(
+	k int,
+	objmap []types.SimklItem,
+) {
+	resource := "movie"
+	tmdbResource := "movie"
+	log.Warn(objmap[k].IDs.Tmdb)
+	if objmap[k].Type == "show" || objmap[k].Type == "episode" && objmap[k].Show != nil {
+		resource = "show"
+		tmdbResource = "tv"
+	}
+	if objmap[k].Season > 0 {
+		resource = "season"
+		tmdbResource = "tv"
+	}
+	if objmap[k].IDs.Tmdb == "0" || objmap[k].IDs.Tmdb == "" {
+		return
+	}
+
+	tmdbid, err := strconv.Atoi(objmap[k].IDs.Tmdb)
+
+	if objmap[k].Show != nil {
+		tmdbid, err = strconv.Atoi(objmap[k].IDs.Tmdb)
+	}
+
+	id := uint(tmdbid)
+
+	if err != nil {
+		log.Error("Invalid TMDB ID", objmap[k].IDs.Tmdb)
+		return
+	}
+
+	tmdbObj := t.GetItem(tmdbResource, resource, uint(id))
+
+	if tmdbObj == nil {
+		return
+	}
+	tmdb := t.prepare(tmdbObj)
+	tmdbObj = t.tmdbToObj(tmdb)
+	if len(objmap[k].Images.Fanart) == 0 {
+		objmap[k].Images.Fanart = []string{"https://wsrv.nl?url=https://image.tmdb.org/t/p/w1280/" + tmdb.BackdropPath}
+	}
+	objmap[k].Images.Logo = []string{"https://wsrv.nl?url=https://image.tmdb.org/t/p/w780/" + tmdb.LogoPath}
+	if len(objmap[k].Images.Poster) == 0 {
+		objmap[k].Images.Poster = []string{"https://wsrv.nl?url=https://image.tmdb.org/t/p/w780/" + tmdb.PosterPath}
+	}
+	objmap[k].Tmdb = tmdbObj
+	if objmap[k].Show != nil {
+		objmap[k].Show.Tmdb = tmdbObj
+		if len(objmap[k].Show.Images.Fanart) == 0 {
+			objmap[k].Show.Images.Fanart = []string{"https://wsrv.nl?url=https://image.tmdb.org/t/p/w1280/" + tmdb.BackdropPath}
+		}
+		objmap[k].Show.Images.Logo = []string{"https://wsrv.nl?url=https://image.tmdb.org/t/p/w780/" + tmdb.LogoPath}
+		if len(objmap[k].Show.Images.Poster) == 0 {
+			objmap[k].Show.Images.Poster = []string{"https://wsrv.nl?url=https://image.tmdb.org/t/p/w780/" + tmdb.PosterPath}
 		}
 	}
 }

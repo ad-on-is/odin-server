@@ -45,6 +45,26 @@ func (h *Helpers) GetTraktHeadersForUser(info *models.RequestInfo, url string) m
 	return theaders
 }
 
+func (h *Helpers) GetSimklHeadersForUser(info *models.RequestInfo, url string) map[string]string {
+	id := info.AuthRecord.Id
+
+	t := make(map[string]any)
+	u, _ := h.app.Dao().FindRecordById("users", id)
+	u.UnmarshalJSONField("simkl_token", &t)
+	// delete(trakt.Headers, "authorization")
+	//
+	theaders := map[string]string{}
+
+	if t != nil && t["access_token"] != nil {
+		theaders["authorization"] = "Bearer " + t["access_token"].(string)
+	}
+	if strings.Contains(url, "fresh=true") {
+		delete(theaders, "authorization")
+	}
+
+	return theaders
+}
+
 func (h *Helpers) GetHomeDir() string {
 	currentUser, err := user.Current()
 	if err != nil {

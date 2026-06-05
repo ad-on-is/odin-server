@@ -21,6 +21,7 @@ import (
 	"github.com/odin-movieshow/backend/imdb"
 	"github.com/odin-movieshow/backend/scraper"
 	"github.com/odin-movieshow/backend/settings"
+	"github.com/odin-movieshow/backend/simkl"
 	"github.com/odin-movieshow/backend/tmdb"
 	"github.com/odin-movieshow/backend/trakt"
 	"github.com/odin-movieshow/backend/types"
@@ -114,7 +115,7 @@ func main() {
 		}
 	}
 
-	conf := pocketbase.Config{DefaultDev: false}
+	conf := pocketbase.Config{DefaultDev: true}
 	app := pocketbase.NewWithConfig(conf)
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Automigrate: true,
@@ -126,6 +127,7 @@ func main() {
 		helpers := helpers.New(app)
 		tmdb := tmdb.New(settings, cache)
 		trakt := trakt.New(app, tmdb, settings, cache)
+		simkl := simkl.New(app, tmdb, settings, cache)
 		realdebrid := realdebrid.New(app, settings)
 		alldebrid := alldebrid.New(app, settings)
 		scraper := scraper.New(cache, realdebrid, alldebrid)
@@ -366,6 +368,53 @@ func main() {
 			return c.JSON(http.StatusOK, result)
 		}, RequireDeviceOrRecordAuth(app))
 
+		e.Router.GET("/-/simklseasons/:id", func(c echo.Context) error {
+			id, _ := strconv.Atoi(c.PathParam("id"))
+			res := simkl.GetSeasons(uint(id))
+
+			return c.JSON(http.StatusOK, res)
+		}, RequireDeviceOrRecordAuth(app))
+
+		e.Router.Any("/-/simkl/*", func(c echo.Context) error {
+			info := apis.RequestInfo(c)
+
+			id := info.AuthRecord.Id
+
+			url := strings.ReplaceAll(c.Request().URL.String(), "/-/simkl", "")
+			theaders := helpers.GetSimklHeadersForUser(apis.RequestInfo(c), url)
+
+			jsonData := apis.RequestInfo(c).Data
+
+			if strings.Contains(url, "scrobble/stop") {
+				go func() {
+					trakt.SyncHistory(id)
+				}()
+			}
+			result, headers, status := simkl.CallEndpoint(
+				url,
+				c.Request().Method,
+				types.SimklParams{
+					Body:      jsonData,
+					Donorm:    true,
+					Headers:   theaders,
+					FetchTMDB: true,
+				},
+			)
+
+			for k, v := range headers {
+				if funk.Contains([]string{
+					"Content-Encoding",
+					"Access-Control-Allow-Origin",
+				}, k) {
+					continue
+				}
+				c.Response().Header().Add(k, v[0])
+			}
+			c.Response().Status = status
+
+			return c.JSON(http.StatusOK, result)
+		}, RequireDeviceOrRecordAuth(app))
+
 		e.Router.Any("/-/realdebrid/*", func(c echo.Context) error {
 			url := strings.ReplaceAll(c.Request().URL.String(), "/-/realdebrid", "")
 			var result interface{}
@@ -426,6 +475,10 @@ func main() {
 
 		e.Router.GET("/-/secrets", func(c echo.Context) error {
 			return c.JSON(http.StatusOK, map[string]string{"TRAKT_CLIENTID": os.Getenv("TRAKT_CLIENTID"), "TRAKT_SECRET": os.Getenv("TRAKT_SECRET")})
+		})
+
+		e.Router.GET("/-/simklsecrets", func(c echo.Context) error {
+			return c.JSON(http.StatusOK, map[string]string{"SIMKL_CLIENTID": os.Getenv("SIMKL_CLIENTID"), "SIMKL_SECRET": os.Getenv("SIMKL_SECRET")})
 		})
 
 		e.Router.GET("/-/health", func(c echo.Context) error {
