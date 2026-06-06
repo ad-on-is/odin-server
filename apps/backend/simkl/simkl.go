@@ -79,7 +79,7 @@ func (t *Simkl) RemoveDuplicates(objmap []types.SimklItem) []types.SimklItem {
 
 func (t *Simkl) removeWatched(objmap []types.SimklItem) []types.SimklItem {
 	return funk.Filter(objmap, func(o types.SimklItem) bool {
-		return !o.Watched
+		return !o.IsWatched
 	}).([]types.SimklItem)
 }
 
@@ -147,13 +147,13 @@ func (t *Simkl) syncByType(wg *sync.WaitGroup, typ string, last_history ptypes.D
 		}
 		for _, o := range data.([]types.SimklItem) {
 			o.Original = nil
-			o.Watched = true
+			o.IsWatched = true
 			record := models.NewRecord(collection)
 			record.Set("watched_at", o.WatchedAt)
 			record.Set("user", user)
 			record.Set("type", o.Type)
 			record.Set("simkl_id", o.IDs.SimklID)
-			record.Set("runtime", o.RuntimeStr)
+			record.Set("runtime", o.RuntimeMinutes)
 			switch typ {
 			case "movies":
 				record.Set("data", o)
@@ -188,7 +188,10 @@ func (t *Simkl) RefreshTokens() {
 }
 
 func (t *Simkl) normalize(objmap []types.SimklItem, isShow bool) []types.SimklItem {
+	log.Info("NORMAAAAAL")
 	for i, o := range objmap {
+		log.Info("normalizing")
+		o.Language = o.Country
 		if o.Movie != nil || o.Episode != nil || o.Show != nil {
 			m := types.SimklItem{}
 			if o.Movie != nil {
@@ -236,6 +239,7 @@ func (t *Simkl) ObjToItems(objmap []any, isShow bool) []types.SimklItem {
 	}
 
 	err = json.Unmarshal(jm, &items)
+	log.Error(err)
 
 	if err != nil {
 		return items
@@ -248,11 +252,13 @@ func (t *Simkl) ObjToItems(objmap []any, isShow bool) []types.SimklItem {
 	for i, item := range items {
 		if isShow {
 			items[i].Type = "show"
+			items[i].Show = &items[i]
 		} else {
 			items[i].Type = "movie"
+			items[i].Movie = &items[i]
 		}
-		items[i].Language = items[i].Country
 		items[i].Original = &objmap[i]
+		items[i].Language = items[i].Country
 		if item.Show != nil {
 			sorig := objmap[i].(map[string]any)["show"]
 			(*items[i].Show).Original = &sorig
@@ -270,6 +276,7 @@ func (t *Simkl) ObjToItems(objmap []any, isShow bool) []types.SimklItem {
 func (t *Simkl) ItemsToObj(items []types.SimklItem) []map[string]any {
 	m, err := json.Marshal(items)
 	o := []map[string]any{}
+
 	if err != nil {
 		return o
 	}
@@ -281,6 +288,7 @@ func (t *Simkl) ItemsToObj(items []types.SimklItem) []map[string]any {
 
 	for i := range o {
 		orig := items[i].Original
+
 		for k, v := range (*orig).(map[string]any) {
 			if o[i][k] == nil && v != nil {
 				o[i][k] = v
@@ -460,7 +468,6 @@ func (t *Simkl) CallEndpoint(endpoint string, method string, params types.SimklP
 	o[0].Language = o[0].Country
 	o[0].Original = &objmap
 	os := t.ItemsToObj(o)
-	log.Debug(os)
 
 	return os, respHeaders, status
 }
@@ -548,12 +555,12 @@ func (t *Simkl) AssignWatched(objmap []types.SimklItem, typ string) []types.Simk
 		if o.Episodes != nil {
 			for j, e := range *o.Episodes {
 				oid := e.IDs.SimklID
-				(*objmap[i].Episodes)[j].Watched = false
+				(*objmap[i].Episodes)[j].IsWatched = false
 				for _, h := range history {
 					hid := uint(h.(map[string]any)["simkl_id"].(float64))
 					if hid == oid {
-						(*objmap[i].Episodes)[j].Watched = true
-						log.Debug(oid, "watched", (*objmap[i].Episodes)[j].Watched)
+						(*objmap[i].Episodes)[j].IsWatched = true
+						log.Debug(oid, "watched", (*objmap[i].Episodes)[j].IsWatched)
 						break
 					}
 				}
@@ -561,11 +568,11 @@ func (t *Simkl) AssignWatched(objmap []types.SimklItem, typ string) []types.Simk
 		} else {
 
 			oid := o.IDs.SimklID
-			objmap[i].Watched = false
+			objmap[i].IsWatched = false
 			for _, h := range history {
 				hid := uint(h.(map[string]any)["simkl_id"].(float64))
 				if hid == oid {
-					objmap[i].Watched = true
+					objmap[i].IsWatched = true
 					break
 				}
 			}
@@ -580,36 +587,44 @@ func (t *Simkl) AssignWatched(objmap []types.SimklItem, typ string) []types.Simk
 	return newmap
 }
 
+type EpisodeResult struct {
+	Season  uint   `json:"season"`
+	Episode uint   `json:"episode"`
+	Title   string `json:"title"`
+}
+
 func (t *Simkl) GetSeasons(id uint) any {
 
 	endpoint := fmt.Sprintf("/tv/episodes/%d", id)
 	result, _, _ := t.CallEndpoint(endpoint, "GET", types.SimklParams{})
-	episodes := []types.Episode{}
-	seasons := []types.Season{}
+	seasons := []types.SimklItem{}
 
 	d, err := json.Marshal(result)
 	if err != nil {
 		log.Error("simkl", "marshal", err)
 		return nil
 	}
-	err = json.Unmarshal(d, &episodes)
+
+	eRes := []EpisodeResult{}
+
+	err = json.Unmarshal(d, &eRes)
 	if err != nil {
 		log.Error("simkl", "unmarshal", err)
 		return nil
 	}
 
-	for _, e := range episodes {
-		e.Number = e.Episode
-		s := types.Season{Number: e.Season, Title: fmt.Sprintf("Season %d", e.Season), Episodes: []types.Episode{}}
-		idx := funk.IndexOf(seasons, func(season types.Season) bool {
+	for _, e := range eRes {
+		ep := types.SimklItem{Title: e.Title, Number: e.Episode, Season: e.Season}
+		s := types.SimklItem{Number: e.Season, Title: fmt.Sprintf("Season %d", e.Season), Episodes: &[]types.SimklItem{}}
+		idx := funk.IndexOf(seasons, func(season types.SimklItem) bool {
 			return season.Number == e.Season
 		})
 
 		if idx == -1 {
-			s.Episodes = append(s.Episodes, e)
+			*(s.Episodes) = append(*(s.Episodes), ep)
 			seasons = append(seasons, s)
 		} else {
-			seasons[idx].Episodes = append(seasons[idx].Episodes, e)
+			*(seasons[idx].Episodes) = append(*(seasons[idx].Episodes), ep)
 		}
 
 	}

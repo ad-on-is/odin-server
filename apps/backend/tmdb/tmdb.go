@@ -106,7 +106,6 @@ func (t *Tmdb) PopulateSimklTMDB(
 ) {
 	resource := "movie"
 	tmdbResource := "movie"
-	log.Warn(objmap[k].IDs.Tmdb)
 	if objmap[k].Type == "show" || objmap[k].Type == "episode" && objmap[k].Show != nil {
 		resource = "show"
 		tmdbResource = "tv"

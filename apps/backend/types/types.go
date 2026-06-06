@@ -121,12 +121,12 @@ type SimklItem struct {
 		Tmdb       string `json:"tmdb"`
 		Tvdb       string `json:"tvdb"`
 	} `json:"ids"`
-	Runtime    *uint
-	RuntimeStr string `json:"runtime"`
-	Season     uint   `json:"season"`
-	Number     uint   `json:"number"`
-	WatchedBy  uint   `json:"watched"`
-	Watched    bool
+	Runtime        string `json:"runtime"`
+	RuntimeMinutes uint   `json:"runtime_minutes"`
+	Season         uint   `json:"season"`
+	Number         uint   `json:"number"`
+	Watched        uint   `json:"watched"`
+	IsWatched      bool   `json:"is_watched"`
 }
 
 type Unrestricted struct {

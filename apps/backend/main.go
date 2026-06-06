@@ -158,7 +158,7 @@ func main() {
 		scheduler.MustAdd("hourly", "0 * * * *", func() {
 			trakt.RefreshTokens()
 			realdebrid.RefreshTokens()
-			trakt.SyncHistory("")
+			// trakt.SyncHistory("")
 		})
 		scheduler.MustAdd("daily", "0 4 * * *", func() {
 			realdebrid.Cleanup()
